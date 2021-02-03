@@ -98,9 +98,91 @@ function createFeatures(dataFolder::String, dataSet::String)
 
         if dataSet == "kidney"
 
-            #TODO
+            # Add the column related to the class (always do it first!)
+            features.class = ifelse.(rawData.class .== "ckd", 1, 0)
 
-        end 
+            # Add columns related to the ages
+            createColumns(:age, [0, 18, 26, 36, 46, 56, 66, 76, 86, Inf], rawData, features)
+            
+            # Add columns related to the blood pressure
+            createColumns(:bp,  [0, 70, 90, Inf], rawData, features)
+            
+            # Add columns related to the specific gravity
+            for a in sort(unique(rawData.sg))
+                features[!, Symbol("sg", a)] = ifelse.(rawData.sg .<= a, 1, 0)
+            end
+            
+            # Add columns related to the albumin
+            for a in sort(unique(rawData.al))
+                features[!, Symbol("al", a)] = ifelse.(rawData.al .<= a, 1, 0)
+            end
+            
+            # Add columns related to the sugar
+            for a in sort(unique(rawData.su))
+                features[!, Symbol("su", a)] = ifelse.(rawData.su .<= a, 1, 0)
+            end
+            
+            # Add columns related to the blood pressure
+            features.rbc = ifelse.(rawData.rbc .== "abnormal", 1, 0)
+            
+            # Add columns related to the pus cell
+            features.pc = ifelse.(rawData.pc .== "abnormal", 1, 0)
+            
+            # Add columns related to the pus cell clumps
+            features.pcc = ifelse.(rawData.pcc .== "notpresent", 1, 0)
+
+            # Add columns related to the bacteria
+            features.ba = ifelse.(rawData.ba .== "notpresent", 1, 0)
+            
+            # Add columns related to the ages
+            createColumns(:age, [0, 18, 26, 36, 46, 56, 66, 76, 86, Inf], rawData, features)
+
+            # Add columns related to the blood glucose random
+            createColumns(:bgr,  [0, 90, 110, 120, 130, Inf], rawData, features)
+            
+            # Add columns related to the blood urea
+            createColumns(:bu,  [0, 15, 25, 35, 45, 55, 65, Inf], rawData, features)
+
+            # Add columns related to the serum creatinine
+            createColumns(:sc,  [0, 0.5, 0.9, 1.2, 1.6, 2.2, 2.9, Inf], rawData, features)
+
+            # Add columns related to the sodium
+            createColumns(:sod,  [0, 115, 125, 135, 140, 145, Inf], rawData, features)
+            
+            # Add columns related to the potassium
+            createColumns(:pot,  [0, 3, 3.9, 4.6, 5, 5.6, Inf], rawData, features)
+            
+            # Add columns related to the hemoglobine
+            createColumns(:hemo,  [0, 5, 11, 14, 17, Inf], rawData, features)
+            
+            # Add columns related to the packed cell volume
+            createColumns(:pcv,  [0, 15, 25, 35, 40, 45, 50, Inf], rawData, features)
+            
+            # Add columns related to the packed cell volume
+            createColumns(:pcv,  [0, 15, 25, 35, 40, 45, 50, Inf], rawData, features)
+            
+            # Add columns related to the white blood cell count
+            createColumns(:wbcc,  [0, 4500, 6500, 7500, 8500, 10500, Inf], rawData, features)
+            
+            # Add columns related to the red blood cell count
+            createColumns(:rbcc,  [0, 2.5, 4.5, 5, 5.6, 6.5, Inf], rawData, features)
+            
+            # Add columns related to the hypertension
+            features.htn = ifelse.(rawData.htn .== "yes", 1, 0)
+            
+            # Add columns related to the diabetes mellitus
+            features.dn = ifelse.(rawData.dn .== "yes", 1, 0)
+            
+            # Add columns related to the appetite
+            features.appet = ifelse.(rawData.appet .== "poor", 1, 0)
+            
+            # Add columns related to the pedal edema
+            features.pe = ifelse.(rawData.pe .== "yes", 1, 0)
+            
+            # Add columns related to the anemia
+            features.ane = ifelse.(rawData.ane .== "yes", 1, 0)
+
+        end
         
         if dataSet == "other"
             #TODO
