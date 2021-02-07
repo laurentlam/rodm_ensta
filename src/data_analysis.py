@@ -7,7 +7,8 @@ from tqdm import tqdm
 seed = 18
 np.random.seed(seed)
 
-dataset_path = "data/kidney.csv"
+# Load data
+dataset_path = "../data/kidney.csv"
 
 df = pd.read_csv(dataset_path)
 
@@ -19,9 +20,8 @@ feature_clf = {'age': 'num', 'bp': 'num', 'sg':'cat', 'al': 'cat', 'su': 'cat', 
 
 label_dict = {'normal': 0, 'abnormal': 1, 'notpresent': 0, 'present': 1, 'yes': 1, 'no': 0, 'ckd': 1, 'notckd': 0, 'good': 0, 'poor':1}
 
-df_processed = preprocess_columns(df)
-df_train, df_test = train_test_split(df_processed, test_size=0.2, random_state=seed)
 
+# Preprocess datatypes into int, float
 def preprocess_columns(df):
     processed_features = {}
     columns = df.columns.tolist()
@@ -31,6 +31,10 @@ def preprocess_columns(df):
         elif df[feature].dtype == object:
             processed_features[feature] = [label_dict[sample] for sample in df[feature]]
     return pd.DataFrame(processed_features)
+
+df_processed = preprocess_columns(df)
+df_train, df_test = train_test_split(df_processed, test_size=0.2, random_state=seed)
+
 
 def test_column_significance(feature, target):
     if feature_clf[feature.name] == 'num':
@@ -65,10 +69,65 @@ def compute_confidence_interval(feature, bt_diff_means):
     boot_ci = np.quantile(bt_diff_means, q=[0.025, 0.975])
     return diff_means, boot_means, boot_ci
 
+# Filter out non-statistically significant features
 res_stats = {}
 for feature in tqdm(features):
     res_stats[feature] = test_column_significance(df_processed[feature], df_processed[target])
 
-pval_threshold = 0.01
+pval_threshold = 0.05
 significant_features = [feature for feature in features if res_stats[feature]['pval'] < pval_threshold]
 
+df_reprocessed = df_processed[significant_features + ['class']]
+
+def get_aggregated_modalities(contingency_table):
+    modalities = contingency_table.index.tolist()
+    discr = False
+    aggr = False
+    aggr_mod = []
+    aggr_mod_index = []
+    for modality_index, modality in enumerate(modalities):
+        if aggr is False:
+            tmp_mod = []
+            tmp_mod_index = []
+        false, true = contingency_table.iloc[modality_index].to_numpy()
+        if aggr is True and (false != 0 and true != 0):
+            aggr_mod.append(tmp_mod)
+            aggr_mod_index.append(tmp_mod_index)
+            tmp_mod = []
+            tmp_mod_index = []
+            aggr = False
+        if false == 0 or true == 0:
+            aggr = True
+        tmp_mod.append(modality)
+        tmp_mod_index.append(modality_index)
+        if not aggr:
+            aggr_mod.append(tmp_mod)
+            aggr_mod_index.append(tmp_mod_index)
+    if aggr_mod[-1] != tmp_mod:
+        aggr_mod.append(tmp_mod)
+        aggr_mod_index.append(tmp_mod_index)
+    return aggr_mod, aggr_mod_index
+
+
+def compute_aggr_mod_bins(res_stats):
+    new_mod_bins = {}
+    for feature in features:
+        if feature_clf[feature] == 'cat':
+            if res_stats[feature]['dof'] > 2:
+                aggregated_mod, aggregated_mod_index = get_aggregated_modalities(res_stats[feature]['cont'])
+                if len(aggregated_mod) < res_stats[feature]['dof']:
+                    # new_mod_bins[feature] = [np.min(mod) for mod in aggregated_mod]
+                    new_mod_bins[feature] = aggregated_mod
+    return new_mod_bins
+
+def reduce_mod_features(df, new_mod_bins):
+    new_modalities_dict = {}
+    for feature, mod_bins in new_mod_bins.items():
+        new_modalities_dict[feature] = {modality: bin_index for bin_index, mod_bin in enumerate(mod_bins) for modality in mod_bin}
+        df[feature] = df[feature].apply(lambda x: new_modalities_dict[feature][x])
+    return df, new_modalities_dict
+
+# Aggregate bins for nominal variables
+new_mod_bins = compute_aggr_mod_bins(res_stats)
+
+df_reprocessed, new_modalities_dict = reduce_mod_features(df_reprocessed.copy(deep=True), new_mod_bins)
