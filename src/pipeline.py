@@ -1,17 +1,38 @@
-import numpy as np
+# -*- coding: utf-8 -*-
+"""SOD322-pipeline.ipynb
+
+# SOD322: Recherche Opérationnelle et Données Massives
+
+## Projet
+
+Laurent Lam & Ilyes El-Rammach
+
+### Import libraries
+"""
+
 import pandas as pd
-from scipy.stats import chi2_contingency, ttest_ind
 from sklearn.model_selection import train_test_split
+from scipy.stats import ttest_ind, chi2_contingency
+import numpy as np
 from tqdm import tqdm
+
+"""### Configuration variables"""
 
 seed = 18
 np.random.seed(seed)
 
-# Load data
+test_size = 1 / 3
+
+bootstrap_size = 1000
+boot_iter = 1000
+pval_threshold = 0.05
+max_bins = 5
+
 dataset_path = "../data/kidney.csv"
 
-df = pd.read_csv(dataset_path)
+"""## Load dataset"""
 
+df = pd.read_csv(dataset_path)
 
 columns = df.columns.tolist()
 features, target = columns[:-1], columns[-1]
@@ -43,11 +64,11 @@ feature_clf = {
     "ane": "cat",
     "class": "cat",
 }
-
 label_dict = {"normal": 0, "abnormal": 1, "notpresent": 0, "present": 1, "yes": 1, "no": 0, "ckd": 1, "notckd": 0, "good": 0, "poor": 1}
 
+"""### Preprocess/Format features"""
 
-# Preprocess datatypes into int, float
+
 def preprocess_columns(df):
     processed_features = {}
     columns = df.columns.tolist()
@@ -61,8 +82,20 @@ def preprocess_columns(df):
 
 df_processed = preprocess_columns(df)
 
+"""## Train test split"""
+
+df_train, df_test = train_test_split(df_processed, test_size=test_size, random_state=seed)
+print(f"Training set size: {df_train.shape[0]}")
+print(f"Testing set size: {df_test.shape[0]}")
+
+"""## Training split analysis
+
+### Independant analysis
+"""
+
 
 def test_column_significance(feature, target):
+    # T-Test
     if feature_clf[feature.name] == "num":
         feature_true = feature[target == 1]
         feature_false = feature[target == 0]
@@ -77,6 +110,7 @@ def test_column_significance(feature, target):
             "pval": pval,
             "bt_diff_means": bt_diff_means,
         }
+    # Chi-2 Test
     elif feature_clf[feature.name] == "cat":
         contingency_table = (
             pd.concat([feature, target], axis=1)
@@ -92,10 +126,10 @@ def test_column_significance(feature, target):
     return stat
 
 
-def bootstrap_diff_means(feature, target, sample_size=1000, bt_size=1000):
+def bootstrap_diff_means(feature, target, sample_size=boot_iter, bt_size=bootstrap_size):
     bt_diff_means = []
     for bootstrap_iter in range(sample_size):
-        boot_index = np.random.randint(len(target), size=bt_size)
+        boot_index = np.random.choice(target.index, size=bt_size)
         boot_feature, boot_target = feature[boot_index], target[boot_index]
         true_boot_feature = boot_feature[boot_target == 1]
         false_boot_feature = boot_feature[boot_target == 0]
@@ -110,19 +144,25 @@ def compute_confidence_interval(feature, bt_diff_means):
     return diff_means, boot_means, boot_ci
 
 
-# Filter out non-statistically significant features
 res_stats = {}
 for feature in tqdm(features):
-    res_stats[feature] = test_column_significance(df_processed[feature], df_processed[target])
+    res_stats[feature] = test_column_significance(df_train[feature], df_train[target])
 
-pval_threshold = 0.05
 significant_features = [feature for feature in features if res_stats[feature]["pval"] < pval_threshold]
+print(f"Significant features {len(significant_features)}/{len(features)}: \n{significant_features}")
 
-df_reprocessed = df_processed[significant_features + ["class"]]
+df_train = df_train[significant_features + ["class"]]
+df_test = df_test[significant_features + ["class"]]
+
+"""### Relationship Analysis # TODO"""
+
+
+"""### Categorial variables: Modalities Aggregation"""
 
 
 def get_aggregated_modalities(contingency_table):
     modalities = contingency_table.index.tolist()
+    discr = False
     aggr = False
     aggr_mod = []
     aggr_mod_index = []
@@ -170,21 +210,22 @@ def reduce_mod_features(df, new_mod_bins):
     return df, new_modalities_dict
 
 
-# Aggregate bins for nominal variables
 new_mod_bins = compute_aggr_mod_bins(res_stats)
+df_train_reprocessed, new_modalities_dict = reduce_mod_features(df_train.copy(deep=True), new_mod_bins)
 
-df_reprocessed, new_modalities_dict = reduce_mod_features(df_reprocessed.copy(deep=True), new_mod_bins)
+"""### Continuous variables : Binning
 
+#### Basic binning: Quantiles
+"""
 
-# Basic binning of continuous variables - quantile-based
-ft_num = [ft for ft in features if feature_clf[ft] == "num"]
+ft_num = set([ft for ft in features if feature_clf[ft] == "num"]).intersection(significant_features)
+binning_intervals = {}
 for ft in ft_num:
-    tmp = pd.qcut(df_reprocessed[ft], q=5, duplicates="drop").nunique()
-    df_reprocessed[ft] = pd.qcut(df_reprocessed[ft], q=5, labels=range(tmp), duplicates="drop")
+    tmp = pd.qcut(df_train_reprocessed[ft], q=max_bins, duplicates="drop")
+    binning_intervals[ft] = tmp.unique().tolist()
+    df_train_reprocessed[ft] = pd.qcut(df_train_reprocessed[ft], q=max_bins, labels=range(len(binning_intervals[ft])), duplicates="drop")
 
-
-# Binarization for ordinal classification
-df_reprocessed = df_reprocessed.astype(int)
+"""### Binarization"""
 
 
 def binarize_ordinal(df):
@@ -192,17 +233,44 @@ def binarize_ordinal(df):
     for ft in df.columns:
         n_cols = df[ft].nunique() - 1
         ft_cols = np.zeros((df.shape[0], n_cols))
-        df_binary[[f"{ft}_{index}" for index in range(n_cols)]] = df_reprocessed[ft].apply(
+        df_binary[[f"{ft}_{index}" for index in range(n_cols)]] = df[ft].apply(
             lambda x: pd.Series([int(x > index) for index in range(n_cols)])
         )
     return df_binary
 
 
-df_binary = binarize_ordinal(df_reprocessed)
+df_train_reprocessed = df_train_reprocessed.astype(int)
+df_train_binary = binarize_ordinal(df_train_reprocessed)
 
-# Train test split
-df_train, df_test = train_test_split(df_binary, test_size=1 / 3, random_state=seed)
+"""## Format/Convert testing split"""
 
-# Write to csv files
-df_train.to_csv("/".join(dataset_path.split("/")[:-1]) + "/kidney_train.csv", index=False)
-df_test.to_csv("/".join(dataset_path.split("/")[:-1]) + "/kidney_test.csv", index=False)
+
+def assign_val2bin(value, bins):
+    if value <= bins[0].left:
+        return 0
+    for bin_index, bin in enumerate(bins):
+        if value in bin:
+            return bin_index
+    return len(bins) - 1
+
+
+def assign_bins(df, binning_intervals):
+    for ft in ft_num:
+        df[ft] = df[ft].apply(lambda x: assign_val2bin(x, binning_intervals[ft]))
+    return df
+
+
+# Statistically significant features
+df_test = df_test[significant_features + ["class"]]
+# Modalities aggregation
+df_test_reprocessed, new_modalities_dict = reduce_mod_features(df_test.copy(deep=True), new_mod_bins)
+# Binning
+df_test_bins = assign_bins(df_test_reprocessed, binning_intervals)
+# Binarizing
+df_test_bins = df_test_bins.astype(int)
+df_test_binary = binarize_ordinal(df_test_bins)
+
+"""## Write to CSV files"""
+
+df_train_binary.to_csv("/".join(dataset_path.split("/")[:-1]) + "/kidney_train.csv", index=False)
+df_test_binary.to_csv("/".join(dataset_path.split("/")[:-1]) + "/kidney_test.csv", index=False)
