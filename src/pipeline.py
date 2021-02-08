@@ -10,10 +10,10 @@ Laurent Lam & Ilyes El-Rammach
 ### Import libraries
 """
 
-import pandas as pd
-from sklearn.model_selection import train_test_split
-from scipy.stats import ttest_ind, chi2_contingency
 import numpy as np
+import pandas as pd
+from scipy.stats import chi2_contingency, ttest_ind
+from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
 """### Configuration variables"""
@@ -85,8 +85,6 @@ df_processed = preprocess_columns(df)
 """## Train test split"""
 
 df_train, df_test = train_test_split(df_processed, test_size=test_size, random_state=seed)
-print(f"Training set size: {df_train.shape[0]}")
-print(f"Testing set size: {df_test.shape[0]}")
 
 """## Training split analysis
 
@@ -149,7 +147,6 @@ for feature in tqdm(features):
     res_stats[feature] = test_column_significance(df_train[feature], df_train[target])
 
 significant_features = [feature for feature in features if res_stats[feature]["pval"] < pval_threshold]
-print(f"Significant features {len(significant_features)}/{len(features)}: \n{significant_features}")
 
 df_train = df_train[significant_features + ["class"]]
 df_test = df_test[significant_features + ["class"]]
@@ -160,7 +157,7 @@ df_test = df_test[significant_features + ["class"]]
 """### Categorial variables: Modalities Aggregation"""
 
 
-def get_aggregated_modalities(contingency_table):
+def get_aggregated_modalities(contingency_table, ineq="zero"):
     modalities = contingency_table.index.tolist()
     discr = False
     aggr = False
@@ -171,14 +168,15 @@ def get_aggregated_modalities(contingency_table):
             tmp_mod = []
             tmp_mod_index = []
         false, true = contingency_table.iloc[modality_index].to_numpy()
-        if aggr is True and (false != 0 and true != 0):
-            aggr_mod.append(tmp_mod)
-            aggr_mod_index.append(tmp_mod_index)
-            tmp_mod = []
-            tmp_mod_index = []
-            aggr = False
-        if false == 0 or true == 0:
-            aggr = True
+        if ineq == "zero":
+            if aggr is True and (false != 0 and true != 0):
+                aggr_mod.append(tmp_mod)
+                aggr_mod_index.append(tmp_mod_index)
+                tmp_mod = []
+                tmp_mod_index = []
+                aggr = False
+            if false == 0 or true == 0:
+                aggr = True
         tmp_mod.append(modality)
         tmp_mod_index.append(modality_index)
         if not aggr:
@@ -213,17 +211,66 @@ def reduce_mod_features(df, new_mod_bins):
 new_mod_bins = compute_aggr_mod_bins(res_stats)
 df_train_reprocessed, new_modalities_dict = reduce_mod_features(df_train.copy(deep=True), new_mod_bins)
 
-"""### Continuous variables : Binning
-
-#### Basic binning: Quantiles
-"""
+"""### Continuous variables : Binning"""
 
 ft_num = set([ft for ft in features if feature_clf[ft] == "num"]).intersection(significant_features)
+
+
+def assign_val2bin(value, bins):
+    if value <= bins[0].left:
+        return 0
+    for bin_index, bin in enumerate(bins):
+        if value in bin:
+            return bin_index
+    return len(bins) - 1
+
+
+def assign_bins(df, binning_intervals):
+    for ft in df.columns:
+        if ft in binning_intervals:
+            df[ft] = df[ft].apply(lambda x: assign_val2bin(x, binning_intervals[ft]))
+    return df
+
+
+"""#### Basic binning: Quantiles
+
+"
 binning_intervals = {}
 for ft in ft_num:
-    tmp = pd.qcut(df_train_reprocessed[ft], q=max_bins, duplicates="drop")
+    tmp = pd.qcut(df_train_reprocessed[ft], q=max_bins, duplicates='drop')
     binning_intervals[ft] = tmp.unique().tolist()
-    df_train_reprocessed[ft] = pd.qcut(df_train_reprocessed[ft], q=max_bins, labels=range(len(binning_intervals[ft])), duplicates="drop")
+    df_train_reprocessed[ft] = pd.qcut(df_train_reprocessed[ft], q=max_bins, labels=range(len(binning_intervals[ft])), duplicates='drop')
+
+#### Sick population's Quantiles + Aggregation
+"""
+
+df_true = df_train_reprocessed[df_train_reprocessed["class"] == 1]
+df_false = df_train_reprocessed[df_train_reprocessed["class"] == 0]
+
+continuous_bins = {ft: pd.qcut(df_true[ft], q=max_bins, duplicates="drop").values.categories for ft in ft_num}
+
+df_bins = assign_bins(df_train_reprocessed, continuous_bins)
+
+
+def compute_aggr_cont_bins(df, cont_bins):
+    new_cont_bins = {}
+    for feature in ft_num:
+        contingency_table = contingency_table = (
+            pd.concat([df[feature], df[target]], axis=1)
+            .pivot_table(index=feature, columns=target, aggfunc=len)
+            .fillna(0)
+            .copy()
+            .astype(int)
+        )
+        aggregated_cont, aggregated_cont_index = get_aggregated_modalities(contingency_table)
+        if len(aggregated_cont) < len(cont_bins[feature]):
+            new_cont_bins[feature] = aggregated_cont
+    return new_cont_bins
+
+
+new_cont_bins = compute_aggr_cont_bins(df_bins, continuous_bins)
+
+df_aggr_bins, new_cont_dict = reduce_mod_features(df_bins.copy(deep=True), new_cont_bins)
 
 """### Binarization"""
 
@@ -239,36 +286,22 @@ def binarize_ordinal(df):
     return df_binary
 
 
-df_train_reprocessed = df_train_reprocessed.astype(int)
+df_train_reprocessed = df_aggr_bins.astype(int)
 df_train_binary = binarize_ordinal(df_train_reprocessed)
 
 """## Format/Convert testing split"""
 
-
-def assign_val2bin(value, bins):
-    if value <= bins[0].left:
-        return 0
-    for bin_index, bin in enumerate(bins):
-        if value in bin:
-            return bin_index
-    return len(bins) - 1
-
-
-def assign_bins(df, binning_intervals):
-    for ft in ft_num:
-        df[ft] = df[ft].apply(lambda x: assign_val2bin(x, binning_intervals[ft]))
-    return df
-
-
 # Statistically significant features
 df_test = df_test[significant_features + ["class"]]
 # Modalities aggregation
-df_test_reprocessed, new_modalities_dict = reduce_mod_features(df_test.copy(deep=True), new_mod_bins)
+df_test_reprocessed, _ = reduce_mod_features(df_test.copy(deep=True), new_mod_bins)
 # Binning
-df_test_bins = assign_bins(df_test_reprocessed, binning_intervals)
+## Continuous variables
+df_test_bins = assign_bins(df_test_reprocessed, continuous_bins)
+df_test_bins_cont, _ = reduce_mod_features(df_test_bins.copy(deep=True), new_cont_bins)
 # Binarizing
-df_test_bins = df_test_bins.astype(int)
-df_test_binary = binarize_ordinal(df_test_bins)
+df_test_bins_cont = df_test_bins_cont.astype(int)
+df_test_binary = binarize_ordinal(df_test_bins_cont)
 
 """## Write to CSV files"""
 
