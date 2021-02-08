@@ -260,11 +260,19 @@ function createRules(dataSet::String, resultsFolder::String, train::DataFrames.D
         # Find the rules for each class
         ##################
         for y = 0:1
-
+            m = Model(CPLEX.Optimizer)
+            @variable(m, 0 <= x[i in 1:n] <= 1) 
+            @variable(m, b[i in 1:d], Bin)
+            @objective(m, Max, (sum(x[i]*(1-abs(y-t[i,1])) - RgenX*x[i] for i = 1:n) - RgenB * sum(b[j] for j =1:d)))
+            
             println("-- Classe $y")
 
-            #TODO
-
+            cMax::Int64 = n
+            iter::Int64 = 1
+            s::Int64 = 0
+            while cMax > n*mincov
+                
+            
             # Help: Let rule be a rule that you want to add to rules
             # - if it is the first rule, use: rules = rule
             # - if it is not the first rule, use: rules = append!(rules, rule)
