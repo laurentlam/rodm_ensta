@@ -6,304 +6,118 @@
 ## Projet
 
 Laurent Lam & Ilyes El-Rammach
-
-### Import libraries
 """
 
-import numpy as np
+import argparse
 import pandas as pd
-from scipy.stats import chi2_contingency, ttest_ind
 from sklearn.model_selection import train_test_split
-from tqdm import tqdm
 
-"""### Configuration variables"""
+from config import *
+from functions import *
 
-seed = 18
-np.random.seed(seed)
-
-test_size = 1 / 3
-
-bootstrap_size = 1000
-boot_iter = 1000
-pval_threshold = 0.05
-max_bins = 5
-
-dataset_path = "../data/kidney.csv"
-
-"""## Load dataset"""
-
-df = pd.read_csv(dataset_path)
-
-columns = df.columns.tolist()
-features, target = columns[:-1], columns[-1]
-
-feature_clf = {
-    "age": "num",
-    "bp": "num",
-    "sg": "cat",
-    "al": "cat",
-    "su": "cat",
-    "rbc": "cat",
-    "pc": "cat",
-    "pcc": "cat",
-    "ba": "cat",
-    "bgr": "num",
-    "bu": "num",
-    "sc": "num",
-    "sod": "num",
-    "pot": "num",
-    "hemo": "num",
-    "pcv": "num",
-    "wbcc": "num",
-    "rbcc": "num",
-    "htn": "cat",
-    "dm": "cat",
-    "cad": "cat",
-    "appet": "cat",
-    "pe": "cat",
-    "ane": "cat",
-    "class": "cat",
-}
-label_dict = {"normal": 0, "abnormal": 1, "notpresent": 0, "present": 1, "yes": 1, "no": 0, "ckd": 1, "notckd": 0, "good": 0, "poor": 1}
-
-"""### Preprocess/Format features"""
+logger = get_logger()
 
 
-def preprocess_columns(df):
-    processed_features = {}
+def create_features(df):
+    # Collect features and target
     columns = df.columns.tolist()
-    for feature in columns:
-        if df[feature].dtype in [int, float]:
-            processed_features[feature] = df[feature].tolist()
-        elif df[feature].dtype == object:
-            processed_features[feature] = [label_dict[sample] for sample in df[feature]]
-    return pd.DataFrame(processed_features)
+    features, target = columns[:-1], columns[-1]
+
+    # Independent statistical analysis
+    logger.info('Independant statistical analysis...')
+    stats_features = {feature: test_column_significance(df[feature], df[target]) for feature in features}
+    significant_features = [feature for feature in features if stats_features[feature]["pval"] < pval_threshold]
+    logger.info(f'Found {len(significant_features)}/{len(features)} significant features.')
+    df_filtered = df[significant_features + [target]]
+
+    # Nominal variables: Modalities aggregation
+    logger.info('Nominal features: Aggregating modalities...')
+    aggr_mod_bins = create_aggr_mod_bins(stats_features)
+    logger.info(f'Nominal features: Found modalities to aggregate from {len(aggr_mod_bins)} features.')
+    df_aggr_mod = reduce_mod_features(df_filtered, aggr_mod_bins)
+
+    # Continuous variables: Binning
+    logger.info('Continuous features: Creating bins...')
+    continuous_bins = create_bins(df_aggr_mod, target)
+    logger.info('Continuous features: Assigning bins...')
+    df_bins = assign_bins(df_aggr_mod, continuous_bins)
+    # Continuous variables: Bins aggregation
+    logger.info('Continuous features: Aggregating bins...')
+    aggr_cont_bins = create_aggr_cont_bins(df_bins, continuous_bins)
+    logger.info(f'Continuous features: Found bins to aggregate from {len(aggr_cont_bins)} features.')
+    df_aggr_bins = reduce_mod_features(df_bins, aggr_cont_bins)
+
+    # Binarization
+    logger.info('Binarizing features...')
+    df_train_binary = binarize_ordinal(df_aggr_bins)
+
+    # Collect features markers
+    features_markers = {
+        "target": target,
+        "significant_features": significant_features,
+        "aggr_mod_bins": aggr_mod_bins,
+        "continuous_bins": continuous_bins,
+        "aggr_cont_bins": aggr_cont_bins,
+    }
+    logger.info('Created features markers for features binarization.')
+    return df_train_binary, features_markers
 
 
-df_processed = preprocess_columns(df)
-
-"""## Train test split"""
-
-df_train, df_test = train_test_split(df_processed, test_size=test_size, random_state=seed)
-
-"""## Training split analysis
-
-### Independant analysis
-"""
-
-
-def test_column_significance(feature, target):
-    # T-Test
-    if feature_clf[feature.name] == "num":
-        feature_true = feature[target == 1]
-        feature_false = feature[target == 0]
-        tval, pval = ttest_ind(feature_true, feature_false)
-        bt_diff_means = bootstrap_diff_means(feature, target)
-        diff_means, boot_means, boot_ci = compute_confidence_interval(feature, bt_diff_means)
-        stat = {
-            "diff_means": diff_means,
-            "boot_means": boot_means,
-            "boot_ci": boot_ci,
-            "tval": tval,
-            "pval": pval,
-            "bt_diff_means": bt_diff_means,
-        }
-    # Chi-2 Test
-    elif feature_clf[feature.name] == "cat":
-        contingency_table = (
-            pd.concat([feature, target], axis=1)
-            .pivot_table(index=feature.name, columns=target.name, aggfunc=len)
-            .fillna(0)
-            .copy()
-            .astype(int)
-        )
-        g, pval, dof, expected = chi2_contingency(contingency_table)
-        stat = {"g": g, "pval": pval, "dof": dof, "expected": expected, "cont": contingency_table}
-    else:
-        print(f"COLUMN NOT CLASSIFIED IN feature_clf: {feature.name}")
-    return stat
-
-
-def bootstrap_diff_means(feature, target, sample_size=boot_iter, bt_size=bootstrap_size):
-    bt_diff_means = []
-    for bootstrap_iter in range(sample_size):
-        boot_index = np.random.choice(target.index, size=bt_size)
-        boot_feature, boot_target = feature[boot_index], target[boot_index]
-        true_boot_feature = boot_feature[boot_target == 1]
-        false_boot_feature = boot_feature[boot_target == 0]
-        bt_diff_means.append(true_boot_feature.mean() - false_boot_feature.mean())
-    return bt_diff_means
-
-
-def compute_confidence_interval(feature, bt_diff_means):
-    diff_means = feature.mean()
-    boot_means = np.mean(bt_diff_means)
-    boot_ci = np.quantile(bt_diff_means, q=[0.025, 0.975])
-    return diff_means, boot_means, boot_ci
-
-
-res_stats = {}
-for feature in tqdm(features):
-    res_stats[feature] = test_column_significance(df_train[feature], df_train[target])
-
-significant_features = [feature for feature in features if res_stats[feature]["pval"] < pval_threshold]
-
-df_train = df_train[significant_features + ["class"]]
-df_test = df_test[significant_features + ["class"]]
-
-"""### Relationship Analysis # TODO"""
-
-
-"""### Categorial variables: Modalities Aggregation"""
-
-
-def get_aggregated_modalities(contingency_table, ineq="zero"):
-    modalities = contingency_table.index.tolist()
-    discr = False
-    aggr = False
-    aggr_mod = []
-    aggr_mod_index = []
-    for modality_index, modality in enumerate(modalities):
-        if aggr is False:
-            tmp_mod = []
-            tmp_mod_index = []
-        false, true = contingency_table.iloc[modality_index].to_numpy()
-        if ineq == "zero":
-            if aggr is True and (false != 0 and true != 0):
-                aggr_mod.append(tmp_mod)
-                aggr_mod_index.append(tmp_mod_index)
-                tmp_mod = []
-                tmp_mod_index = []
-                aggr = False
-            if false == 0 or true == 0:
-                aggr = True
-        tmp_mod.append(modality)
-        tmp_mod_index.append(modality_index)
-        if not aggr:
-            aggr_mod.append(tmp_mod)
-            aggr_mod_index.append(tmp_mod_index)
-    if aggr_mod[-1] != tmp_mod:
-        aggr_mod.append(tmp_mod)
-        aggr_mod_index.append(tmp_mod_index)
-    return aggr_mod, aggr_mod_index
-
-
-def compute_aggr_mod_bins(res_stats):
-    new_mod_bins = {}
-    for feature in features:
-        if feature_clf[feature] == "cat":
-            if res_stats[feature]["dof"] > 2:
-                aggregated_mod, aggregated_mod_index = get_aggregated_modalities(res_stats[feature]["cont"])
-                if len(aggregated_mod) < res_stats[feature]["dof"]:
-                    # new_mod_bins[feature] = [np.min(mod) for mod in aggregated_mod]
-                    new_mod_bins[feature] = aggregated_mod
-    return new_mod_bins
-
-
-def reduce_mod_features(df, new_mod_bins):
-    new_modalities_dict = {}
-    for feature, mod_bins in new_mod_bins.items():
-        new_modalities_dict[feature] = {modality: bin_index for bin_index, mod_bin in enumerate(mod_bins) for modality in mod_bin}
-        df[feature] = df[feature].apply(lambda x: new_modalities_dict[feature][x])
-    return df, new_modalities_dict
-
-
-new_mod_bins = compute_aggr_mod_bins(res_stats)
-df_train_reprocessed, new_modalities_dict = reduce_mod_features(df_train.copy(deep=True), new_mod_bins)
-
-"""### Continuous variables : Binning"""
-
-ft_num = set([ft for ft in features if feature_clf[ft] == "num"]).intersection(significant_features)
-
-
-def assign_val2bin(value, bins):
-    if value <= bins[0].left:
-        return 0
-    for bin_index, bin in enumerate(bins):
-        if value in bin:
-            return bin_index
-    return len(bins) - 1
-
-
-def assign_bins(df, binning_intervals):
-    for ft in df.columns:
-        if ft in binning_intervals:
-            df[ft] = df[ft].apply(lambda x: assign_val2bin(x, binning_intervals[ft]))
-    return df
-
-
-"""#### Basic binning: Quantiles
-
-"
-binning_intervals = {}
-for ft in ft_num:
-    tmp = pd.qcut(df_train_reprocessed[ft], q=max_bins, duplicates='drop')
-    binning_intervals[ft] = tmp.unique().tolist()
-    df_train_reprocessed[ft] = pd.qcut(df_train_reprocessed[ft], q=max_bins, labels=range(len(binning_intervals[ft])), duplicates='drop')
-
-#### Sick population's Quantiles + Aggregation
-"""
-
-df_true = df_train_reprocessed[df_train_reprocessed["class"] == 1]
-df_false = df_train_reprocessed[df_train_reprocessed["class"] == 0]
-
-continuous_bins = {ft: pd.qcut(df_true[ft], q=max_bins, duplicates="drop").values.categories for ft in ft_num}
-
-df_bins = assign_bins(df_train_reprocessed, continuous_bins)
-
-
-def compute_aggr_cont_bins(df, cont_bins):
-    new_cont_bins = {}
-    for feature in ft_num:
-        contingency_table = contingency_table = (
-            pd.concat([df[feature], df[target]], axis=1)
-            .pivot_table(index=feature, columns=target, aggfunc=len)
-            .fillna(0)
-            .copy()
-            .astype(int)
-        )
-        aggregated_cont, aggregated_cont_index = get_aggregated_modalities(contingency_table)
-        if len(aggregated_cont) < len(cont_bins[feature]):
-            new_cont_bins[feature] = aggregated_cont
-    return new_cont_bins
-
-
-new_cont_bins = compute_aggr_cont_bins(df_bins, continuous_bins)
-
-df_aggr_bins, new_cont_dict = reduce_mod_features(df_bins.copy(deep=True), new_cont_bins)
-
-"""### Binarization"""
-
-
-def binarize_ordinal(df):
-    df_binary = pd.DataFrame([])
-    for ft in df.columns:
-        n_cols = df[ft].nunique() - 1
-        ft_cols = np.zeros((df.shape[0], n_cols))
-        df_binary[[f"{ft}_{index}" for index in range(n_cols)]] = df[ft].apply(
-            lambda x: pd.Series([int(x > index) for index in range(n_cols)])
-        )
+def transform_features(df, features_markers):
+    # Statistically significant features
+    logger.info('Filtering out non-significant features...')
+    df_filtered = df[features_markers["significant_features"] + [features_markers["target"]]]
+    # Modalities aggregation
+    logger.info('Reducing nominal modalities...')
+    df_aggr_mod = reduce_mod_features(df_filtered, features_markers["aggr_mod_bins"])
+    # Binning
+    ## Continuous variables
+    logger.info('Assigning bins...')
+    df_bins = assign_bins(df_aggr_mod, features_markers["continuous_bins"])
+    logger.info('Reducing bins modalities...')
+    df_aggr_bins = reduce_mod_features(df_bins, features_markers["aggr_cont_bins"])
+    # Binarizing
+    logger.info('Binarizing features...')
+    df_binary = binarize_ordinal(df_aggr_bins)
+    logger.info('Transformed features into binary features.')
     return df_binary
 
 
-df_train_reprocessed = df_aggr_bins.astype(int)
-df_train_binary = binarize_ordinal(df_train_reprocessed)
+def write_csv_files(dataset, dataset_path, df_train, df_test):
+    folder_path = "/".join(dataset_path.split("/")[:-1])
+    logger.info(f"Writing train split into CSV file at {folder_path + f'/{dataset}_train.csv'}...")
+    df_train.to_csv(folder_path + f'/{dataset}_train.csv', index=False)
+    logger.info(f"Writing test split into CSV file at {folder_path + f'/{dataset}_test.csv'}...")
+    df_test.to_csv(folder_path + f'/{dataset}_test.csv', index=False)
 
-"""## Format/Convert testing split"""
 
-# Statistically significant features
-df_test = df_test[significant_features + ["class"]]
-# Modalities aggregation
-df_test_reprocessed, _ = reduce_mod_features(df_test.copy(deep=True), new_mod_bins)
-# Binning
-## Continuous variables
-df_test_bins = assign_bins(df_test_reprocessed, continuous_bins)
-df_test_bins_cont, _ = reduce_mod_features(df_test_bins.copy(deep=True), new_cont_bins)
-# Binarizing
-df_test_bins_cont = df_test_bins_cont.astype(int)
-df_test_binary = binarize_ordinal(df_test_bins_cont)
-
-"""## Write to CSV files"""
-
-df_train_binary.to_csv("/".join(dataset_path.split("/")[:-1]) + "/kidney_train.csv", index=False)
-df_test_binary.to_csv("/".join(dataset_path.split("/")[:-1]) + "/kidney_test.csv", index=False)
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-d",
+        "--dataset",
+        type=str,
+        help="dataset name",
+    )
+    args = vars(parser.parse_args())
+    dataset = args["dataset"]
+    dataset_path = f"./data/{dataset}.csv"
+    # Load dataset
+    logger.info(f'Loading {dataset} dataset at {dataset_path}.')
+    df = pd.read_csv(dataset_path)
+    logger.info(f'Loaded {dataset}: {df.shape[0]} individuals with {df.shape[1] - 1} features.')
+    # Preprocess columns
+    logger.info(f'Pre-processing {dataset} columns...')
+    df_processed = preprocess_columns(df)
+    # Train test split
+    logger.info(f'Splitting into train test with test_size: {round(test_size, 2)}.')
+    df_train, df_test = train_test_split(df_processed, test_size=test_size, random_state=seed)
+    # Create features
+    logger.info('Creating features from training set...')
+    df_train_binary, features_markers = create_features(df_train)
+    # Transform features
+    df_test_binary = transform_features(df_test, features_markers)
+    # Write to CSV files
+    logger.info('Writing into CSV files...')
+    write_csv_files(dataset, dataset_path, df_train_binary, df_test_binary)
+    logger.info('Pre-processing pipeline done.')
