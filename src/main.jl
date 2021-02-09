@@ -6,7 +6,7 @@ using Random
 
 include("functions.jl")
 
-dataSet = "kidney"
+dataSet = ARGS[1]
 dataFolder = "../data/"
 resultsFolder = "../res/"
 
