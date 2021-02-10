@@ -41,14 +41,30 @@ function createFeatures(dataFolder::String, dataSet::String)
     end
 
     # Put the data in a DataFrame variable
-    rawData = CSV.read(rawDataPath,  header=true)
+    rawData = CSV.read(rawDataPath, header=true) |> DataFrame
 
     # Output files path
     trainDataPath = dataFolder * dataSet * "_train.csv"
     testDataPath = dataFolder * dataSet * "_test.csv"
 
     # If the train or the test file do not exist
+    # If the train or the test file do not exist
     if !isfile(trainDataPath) || !isfile(testDataPath)
+
+        # Shuffle the individuals rawData
+        rawData = rawData[shuffle(1:size(rawData, 1)),:]
+
+        # Percentage of data in the train set
+        trainPercentage = 2/3
+
+        if dataSet == "adult"
+            trainPercentage = 1/32
+        end
+
+        # Get the rawDatas which are in the train set 
+        # (trainRawData can be used to chose select the features)
+        trainLimit = trunc(Int, size(rawData, 1) * trainPercentage)
+        trainRawData = rawData[1:trainLimit, :]
 
         println("=== Creating the features")
 
@@ -93,106 +109,21 @@ function createFeatures(dataFolder::String, dataSet::String)
             # -> 1 column (0: no relatives, 1: at least one relative)
             features.Relative = ifelse.(rawData[!, Symbol("Siblings/Spouses Aboard")] + rawData[!, Symbol("Parents/Children Aboard")] .> 0, 1, 0)
 
-
         end
 
-        if dataSet == "kidney"
+        if dataSet == "adult"
 
-            # Add the column related to the class (always do it first!)
-            features.class = ifelse.(rawData.class .== "ckd", 1, 0)
+            # Warning: this must remain the first column added to features
+            features.income = ifelse.(rawData.income .== " <=50K", 0, 1)
 
-            # Add columns related to the ages
-            createColumns(:age, [0, 18, 26, 36, 46, 56, 66, 76, 86, Inf], rawData, features)
+            # TODO
             
-            # Add columns related to the blood pressure
-            createColumns(:bp,  [0, 70, 90, Inf], rawData, features)
-            
-            # Add columns related to the specific gravity
-            for a in sort(unique(rawData.sg))
-                features[!, Symbol("sg", a)] = ifelse.(rawData.sg .<= a, 1, 0)
-            end
-            
-            # Add columns related to the albumin
-            for a in sort(unique(rawData.al))
-                features[!, Symbol("al", a)] = ifelse.(rawData.al .<= a, 1, 0)
-            end
-            
-            # Add columns related to the sugar
-            for a in sort(unique(rawData.su))
-                features[!, Symbol("su", a)] = ifelse.(rawData.su .<= a, 1, 0)
-            end
-            
-            # Add columns related to the blood pressure
-            features.rbc = ifelse.(rawData.rbc .== "abnormal", 1, 0)
-            
-            # Add columns related to the pus cell
-            features.pc = ifelse.(rawData.pc .== "abnormal", 1, 0)
-            
-            # Add columns related to the pus cell clumps
-            features.pcc = ifelse.(rawData.pcc .== "notpresent", 1, 0)
-
-            # Add columns related to the bacteria
-            features.ba = ifelse.(rawData.ba .== "notpresent", 1, 0)
-            
-            # Add columns related to the ages
-            createColumns(:age, [0, 18, 26, 36, 46, 56, 66, 76, 86, Inf], rawData, features)
-
-            # Add columns related to the blood glucose random
-            createColumns(:bgr,  [0, 90, 110, 120, 130, Inf], rawData, features)
-            
-            # Add columns related to the blood urea
-            createColumns(:bu,  [0, 15, 25, 35, 45, 55, 65, Inf], rawData, features)
-
-            # Add columns related to the serum creatinine
-            createColumns(:sc,  [0, 0.5, 0.9, 1.2, 1.6, 2.2, 2.9, Inf], rawData, features)
-
-            # Add columns related to the sodium
-            createColumns(:sod,  [0, 115, 125, 135, 140, 145, Inf], rawData, features)
-            
-            # Add columns related to the potassium
-            createColumns(:pot,  [0, 3, 3.9, 4.6, 5, 5.6, Inf], rawData, features)
-            
-            # Add columns related to the hemoglobine
-            createColumns(:hemo,  [0, 5, 11, 14, 17, Inf], rawData, features)
-            
-            # Add columns related to the packed cell volume
-            createColumns(:pcv,  [0, 15, 25, 35, 40, 45, 50, Inf], rawData, features)
-            
-            # Add columns related to the packed cell volume
-            createColumns(:pcv,  [0, 15, 25, 35, 40, 45, 50, Inf], rawData, features)
-            
-            # Add columns related to the white blood cell count
-            createColumns(:wbcc,  [0, 4500, 6500, 7500, 8500, 10500, Inf], rawData, features)
-            
-            # Add columns related to the red blood cell count
-            createColumns(:rbcc,  [0, 2.5, 4.5, 5, 5.6, 6.5, Inf], rawData, features)
-            
-            # Add columns related to the hypertension
-            features.htn = ifelse.(rawData.htn .== "yes", 1, 0)
-            
-            # Add columns related to the diabetes mellitus
-            features.dn = ifelse.(rawData.dn .== "yes", 1, 0)
-            
-            # Add columns related to the appetite
-            features.appet = ifelse.(rawData.appet .== "poor", 1, 0)
-            
-            # Add columns related to the pedal edema
-            features.pe = ifelse.(rawData.pe .== "yes", 1, 0)
-            
-            # Add columns related to the anemia
-            features.ane = ifelse.(rawData.ane .== "yes", 1, 0)
-
         end
-        
-        if dataSet == "other"
-            #TODO
-        end 
 
         # Shuffle the individuals
         features = features[shuffle(1:size(features, 1)),:]
 
-        # Split them between train and test
-        trainLimit = trunc(Int, size(features, 1) * 2/3)
+        # Split them between train and test sets
         train = features[1:trainLimit, :]
         test = features[(trainLimit+1):end, :]
         
@@ -203,8 +134,8 @@ function createFeatures(dataFolder::String, dataSet::String)
     else
         println("=== Warning: Existing features found, features creation skipped")
         println("=== Loading existing features")
-        train = CSV.read(trainDataPath)
-        test = CSV.read(testDataPath)
+        train = CSV.File(trainDataPath) |> DataFrame
+        test = CSV.File(testDataPath) |> DataFrame
     end
     
     println("=== ... ", size(train, 1), " individuals in the train set")
@@ -227,10 +158,15 @@ Output
  - table of rules (each line is a rule, the first column corresponds to the rules class)
 """
 function createRules(dataSet::String, resultsFolder::String, train::DataFrames.DataFrame)
+    
+    # Create the result folder if necessary
+    if !isdir(resultsFolder)
+        mkdir(resultsFolder)
+    end
 
     # Output file
     rulesPath = resultsFolder * dataSet * "_rules.csv"
-    rules = []
+    rules = DataFrame()
 
     if !isfile(rulesPath)
 
@@ -255,60 +191,71 @@ function createRules(dataSet::String, resultsFolder::String, train::DataFrames.D
         iterlim::Int64 = 5
         RgenX::Float64 = 0.1 / n
         RgenB::Float64 = 0.1 / (n * d)
-
-        
         
         ##################
         # Find the rules for each class
         ##################
         for y = 0:1
 
-            r = []
+            println("-- Classe $y")
+
             sb::Int64 = 0
-            iter::Int64 = 2
+            iter::Int64 = 1
             cMax::Int64 = n
 
             m = Model(CPLEX.Optimizer)
 
-            #DECLARATION DES x ET DES b :
+            # DECLARATION DES x ET DES b :
             @variable(m, 0 <= x[i in 1:n] <= 1)
-            @variable(m, b[i in 1:d], Bin)
+            @variable(m, b[j in 1:d], Bin)
 
-            #EXPRESSION DE L'OBJECTIF :
-            @objective(m, Max, (sum(x[i]*(1-abs(y-transactionClass[i,1])) - RgenX*x[i] for i = 1:n) - RgenB * sum(b[j] for j =1:d)))
+            # EXPRESSION DE L'OBJECTIF :
+            @objective(m, Max, (sum(x[i] * (1 - abs(y - transactionClass[i,1])) - RgenX * x[i] for i = 1:n) - RgenB * sum(b[j] for j =1:d)))
             
-            EXPRESSION DES TROIS GROUPES DE CONTRAINTES :
+            # EXPRESSION DES TROIS GROUPES DE CONTRAINTES :
+            ## Constraint 1
+            @constraint(m, [i = 1:n, j = 1:d], x[i] <= 1 + (t[i,j] - 1) * b[j])
+            ## Constraint 2
+            @constraint(m, [i = 1:n], x[i] >= 1 + sum((t[i,j]-1)*b[j] for j = 1:d))
+            ## Constraint 3
             @constraint(m, sum(x[i] for i = 1:n) <= cMax)
-
-            for i = 1:n
-                @constraint(m, x[i] >= 1+sum(t[i,j]-1)*b[j] for j = 1:d)
-
-                for j = 1:d
-                    @constraint(m, x[i] <= 1+(t[i,j]-1)*b[j])
-                    
+            
             println("-- Classe $y")
-
-            while cMax > n*mincov
-                optimize!(m)
-                sb = sum(value.(x[i] * (1-abs(y-transactionClass[i,1]))) for i = 1:n)
-                bb = value.(b)
-
-                push!(r , b)  #pas sûr que ça fonctionne comme ça !
-                @constraint(m, sum(b[j]*(1-bb[j]) + (1-b[j])*bb[j] for j = 1:d))
+            while cMax >= n * mincovy
+                if iter == 1
+                    optimize!(m)
+                    sb = 1 / n * sum(JuMP.valuex(x[i] * (1-abs(y-transactionClass[i]))) for i = 1:n)
+                    rule = value.(b)
+                    iter = iter + 1
+                end
+                if rules == []
+                    rules = rule
+                else
+                    rules = append!(rules, rule)
+                end
+                @constraint(m, sum(b[j]*(1-rule[j]) + (1-b[j])*rule[j] for j = 1:d) >= 1)
 
                 if iter < iterlim
                     optimize!(m)
-                    stemp = sum(value.(x[i] * (1-abs(y-transactionClass[i,1]))) for i = 1:n)
-                    bb = value.(b)
+                    stemp = 1 / n * sum(JuMP.valuex(x[i] * (1-abs(y-transactionClass[i]))) for i = 1:n)
+                    rule = value.(b)
                     if stemp < sb
-                        cMax = min(cMax - 1 , sum(x[i] for i=1:n]))
+                        cMax = min(cMax - 1 , sum(x[i] for i=1:n))
                         iter = 1
                     else
-                        iter = iter+1
+                        iter = iter + 1
+                    end
                 else
-                    cMax = cMax-1
+                    cMax = cMax - 1
                     iter = 1
-            push!(rules , r)
+                end
+            end
+            # @constraint(m, NOM_CONTRAINTE, x[1] <= 3)
+            # optimize!(m)
+            # set_normalized_rhs(NOM_CONTRAINTE, 2)
+            # optimize!(m)
+
+        
             # Help: Let rule be a rule that you want to add to rules
             # - if it is the first rule, use: rules = rule
             # - if it is not the first rule, use: rules = append!(rules, rule)
@@ -319,7 +266,7 @@ function createRules(dataSet::String, resultsFolder::String, train::DataFrames.D
     else
         println("=== Warning: Existing rules found, rules creation skipped")
         println("=== Loading the existing rules")
-        rules = CSV.read(rulesPath)
+        rules = CSV.File(rulesPath) |> DataFrame
     end
     
     println("=== ... ", size(rules, 1), " rules obtained") 
@@ -485,7 +432,7 @@ function sortRules(dataSet::String, resultsFolder::String, train::DataFrames.Dat
     else
         println("=== Warning: Sorted rules found, sorting of the rules skipped")
         println("=== Loading the sorting rules")
-        orderedRules = CSV.read(orderedRulesPath)
+        orderedRules = CSV.File(orderedRulesPath) |> DataFrame
     end 
 
     return orderedRules

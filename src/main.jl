@@ -7,8 +7,8 @@ using Random
 include("functions.jl")
 
 dataSet = ARGS[1]
-dataFolder = "../data/"
-resultsFolder = "../res/"
+dataFolder = "./data/"
+resultsFolder = "./res/"
 
 # Create the features tables (or load them if they already exist)
 # Note: each line corresponds to an individual, the 1st column of each table contain the class
