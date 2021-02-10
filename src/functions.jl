@@ -199,7 +199,7 @@ function createRules(dataSet::String, resultsFolder::String, train::DataFrames.D
 
             println("-- Classe $y")
 
-            sb::Int64 = 0
+            sb::Float64 = 0
             iter::Int64 = 1
             cMax::Int64 = n
 
@@ -223,12 +223,11 @@ function createRules(dataSet::String, resultsFolder::String, train::DataFrames.D
             while cMax >= n * mincovy
                 if iter == 1
                     optimize!(m)
-                    xb = value.(x)
-                    sb = 1 / n * sum(xb[i] * (1-abs(y-transactionClass[i,1])) for i = 1:n)
+                    sb = 1 / n * sum(JuMP.value.(x[i]) * (1-abs(y-transactionClass[i,1])) for i = 1:n)
                     rule = value.(b)
                     iter = iter + 1
                 end
-                if rules == []
+                if rules == DataFrame()
                     rules = rule
                 else
                     rules = append!(rules, rule)
@@ -237,8 +236,7 @@ function createRules(dataSet::String, resultsFolder::String, train::DataFrames.D
 
                 if iter < iterlim
                     optimize!(m)
-                    xb = value.(x)
-                    stemp = 1 / n * sum(xb[i] * (1-abs(y-transactionClass[i,1])) for i = 1:n)
+                    stemp = 1 / n * sum(JuMP.value.(x[i]) * (1-abs(y-transactionClass[i,1])) for i = 1:n)
                     rule = value.(b)
                     if stemp < sb
                         cMax = min(cMax - 1 , sum(x[i] for i=1:n))
