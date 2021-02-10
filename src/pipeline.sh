@@ -1,5 +1,5 @@
 
 DATASET=$1
 
-python pipeline.py -d $DATASET
-julia main.jl $DATASET
+python3 src/pipeline.py -d $DATASET
+julia src/main.jl $DATASET

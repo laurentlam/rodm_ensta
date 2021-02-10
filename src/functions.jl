@@ -249,13 +249,8 @@ function createRules(dataSet::String, resultsFolder::String, train::DataFrames.D
                     cMax = cMax - 1
                     iter = 1
                 end
+                rules = append!(rules , r)
             end
-            # @constraint(m, NOM_CONTRAINTE, x[1] <= 3)
-            # optimize!(m)
-            # set_normalized_rhs(NOM_CONTRAINTE, 2)
-            # optimize!(m)
-
-        
             # Help: Let rule be a rule that you want to add to rules
             # - if it is the first rule, use: rules = rule
             # - if it is not the first rule, use: rules = append!(rules, rule)
