@@ -277,38 +277,43 @@ function createRules(dataSet::String, resultsFolder::String, train::DataFrames.D
             #EXPRESSION DE L'OBJECTIF :
             @objective(m, Max, (sum(x[i]*(1-abs(y-transactionClass[i,1])) - RgenX*x[i] for i = 1:n) - RgenB * sum(b[j] for j =1:d)))
             
-            EXPRESSION DES TROIS GROUPES DE CONTRAINTES :
+            #EXPRESSION DES TROIS GROUPES DE CONTRAINTES :
             @constraint(m, sum(x[i] for i = 1:n) <= cMax)
 
             for i = 1:n
                 @constraint(m, x[i] >= 1+sum(t[i,j]-1)*b[j] for j = 1:d)
+            end
 
                 for j = 1:d
                     @constraint(m, x[i] <= 1+(t[i,j]-1)*b[j])
+                end
                     
             println("-- Classe $y")
 
-            while cMax > n*mincov
+            while cMax >= n*mincov
                 optimize!(m)
-                sb = sum(value.(x[i] * (1-abs(y-transactionClass[i,1]))) for i = 1:n)
+                sb = sum(value.(x[i]) * (1-abs(y-transactionClass[i,1])) for i = 1:n)/n
                 bb = value.(b)
 
                 push!(r , b)  #pas sûr que ça fonctionne comme ça !
-                @constraint(m, sum(b[j]*(1-bb[j]) + (1-b[j])*bb[j] for j = 1:d))
+                @constraint(m, sum(b[j]*(1-bb[j]) + (1-b[j])*bb[j] for j = 1:d) >= 1)
 
                 if iter < iterlim
                     optimize!(m)
-                    stemp = sum(value.(x[i] * (1-abs(y-transactionClass[i,1]))) for i = 1:n)
+                    stemp = sum(value.(x[i]) * (1-abs(y-transactionClass[i,1])) for i = 1:n)/n
                     bb = value.(b)
                     if stemp < sb
                         cMax = min(cMax - 1 , sum(x[i] for i=1:n]))
                         iter = 1
                     else
                         iter = iter+1
+                    end
                 else
                     cMax = cMax-1
                     iter = 1
-            push!(rules , r)
+                end
+                push!(rules , r)
+            end
             # Help: Let rule be a rule that you want to add to rules
             # - if it is the first rule, use: rules = rule
             # - if it is not the first rule, use: rules = append!(rules, rule)
