@@ -262,8 +262,6 @@ function createRules(dataSet::String, resultsFolder::String, train::DataFrames.D
         # Find the rules for each class
         ##################
         for y = 0:1
-
-            r = []
             sb::Int64 = 0
             iter::Int64 = 2
             cMax::Int64 = n
@@ -295,7 +293,7 @@ function createRules(dataSet::String, resultsFolder::String, train::DataFrames.D
                 sb = sum(value.(x[i]) * (1-abs(y-transactionClass[i,1])) for i = 1:n)/n
                 bb = value.(b)
 
-                push!(r , b)  #pas sûr que ça fonctionne comme ça !
+                r = b  #pas sûr que ça fonctionne comme ça !
                 @constraint(m, sum(b[j]*(1-bb[j]) + (1-b[j])*bb[j] for j = 1:d) >= 1)
 
                 if iter < iterlim
@@ -312,7 +310,7 @@ function createRules(dataSet::String, resultsFolder::String, train::DataFrames.D
                     cMax = cMax-1
                     iter = 1
                 end
-                push!(rules , r)
+                append!(rules , r)
             end
             # Help: Let rule be a rule that you want to add to rules
             # - if it is the first rule, use: rules = rule
