@@ -41,7 +41,7 @@ function createFeatures(dataFolder::String, dataSet::String)
     end
 
     # Put the data in a DataFrame variable
-    rawData = CSV.read(rawDataPath, header=true) |> DataFrame
+    rawData = CSV.read(rawDataPath, DataFrame, header=true)
 
     # Output files path
     trainDataPath = dataFolder * dataSet * "_train.csv"
@@ -220,11 +220,10 @@ function createRules(dataSet::String, resultsFolder::String, train::DataFrames.D
             ## Constraint 3
             @constraint(m, sum(x[i] for i = 1:n) <= cMax)
             
-            println("-- Classe $y")
             while cMax >= n * mincovy
                 if iter == 1
                     optimize!(m)
-                    sb = 1 / n * sum(JuMP.valuex(x[i] * (1-abs(y-transactionClass[i]))) for i = 1:n)
+                    sb = 1 / n * sum(JuMP.value(x[i]) * (1-abs(y-transactionClass[i, 1])) for i = 1:n)
                     rule = value.(b)
                     iter = iter + 1
                 end
@@ -237,7 +236,7 @@ function createRules(dataSet::String, resultsFolder::String, train::DataFrames.D
 
                 if iter < iterlim
                     optimize!(m)
-                    stemp = 1 / n * sum(JuMP.valuex(x[i] * (1-abs(y-transactionClass[i]))) for i = 1:n)
+                    stemp = 1 / n * sum(JuMP.value(x[i]) * (1-abs(y-transactionClass[i, 1])) for i = 1:n)
                     rule = value.(b)
                     if stemp < sb
                         cMax = min(cMax - 1 , sum(x[i] for i=1:n))
