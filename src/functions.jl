@@ -188,7 +188,7 @@ function createRules(dataSet::String, resultsFolder::String, train::DataFrames.D
         n::Int64 = size(t, 1)
 
         mincovy::Float64 = 0.05
-        iterlim::Int64 = 5
+        iterlim::Int64 = 3
         RgenX::Float64 = 0.1 / n
         RgenB::Float64 = 0.1 / (n * d)
         
@@ -202,6 +202,7 @@ function createRules(dataSet::String, resultsFolder::String, train::DataFrames.D
             sb::Float64 = 0
             iter::Int64 = 1
             cMax::Int64 = n
+            rule = []
 
             m = Model(CPLEX.Optimizer)
 
@@ -224,22 +225,23 @@ function createRules(dataSet::String, resultsFolder::String, train::DataFrames.D
                 if iter == 1
                     optimize!(m)
                     sb = 1 / n * sum(JuMP.value.(x[i]) * (1-abs(y-transactionClass[i,1])) for i = 1:n)
-                    rule = value.(b)
+                    rule = convert(DataFrame, hcat(append!([y], trunc.(Int, JuMP.value.(b)))...))
                     iter = iter + 1
                 end
-                if rules == DataFrame()
-                    rules = rule
+
+                if size(rules, 1) > 0
+                    append!(rules, rule)
                 else
-                    rules = append!(rules, rule)
+                    rules = rule
                 end
-                @constraint(m, sum(b[j]*(1-rule[j]) + (1-b[j])*rule[j] for j = 1:d) >= 1)
+                @constraint(m, sum(b[j]*(1-rule[1,j+1]) + (1-b[j])*rule[1,j+1] for j = 1:d) >= 1)
 
                 if iter < iterlim
                     optimize!(m)
                     stemp = 1 / n * sum(JuMP.value.(x[i]) * (1-abs(y-transactionClass[i,1])) for i = 1:n)
-                    rule = value.(b)
+                    rule = convert(DataFrame, hcat(append!([y], trunc.(Int, JuMP.value.(b)))...))
                     if stemp < sb
-                        cMax = min(cMax - 1 , sum(x[i] for i=1:n))
+                        cMax = min(cMax - 1 , trunc.(Int, sum(JuMP.value(x[i]) for i=1:n)))
                         iter = 1
                     else
                         iter = iter + 1
@@ -248,15 +250,17 @@ function createRules(dataSet::String, resultsFolder::String, train::DataFrames.D
                     cMax = cMax - 1
                     iter = 1
                 end
-                rules = append!(rules , r)
             end
             # Help: Let rule be a rule that you want to add to rules
             # - if it is the first rule, use: rules = rule
             # - if it is not the first rule, use: rules = append!(rules, rule)
         end
-        
-        CSV.write(rulesPath, rules)
-
+        println(rules)
+        if size(rules, 2) == 1
+            CSV.write(rulesPath, rules[1])
+        else
+            CSV.write(rulesPath, rules)
+        end
     else
         println("=== Warning: Existing rules found, rules creation skipped")
         println("=== Loading the existing rules")
