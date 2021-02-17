@@ -28,9 +28,10 @@ rules = createRules(dataSet, resultsFolder, train)
 # Details:
 # - read the file ./data/kidney_rules.csv
 # - save the rules in ./res/kidney_ordered_rules.csv
-timeLimitInSeconds = 300
-if dataset == "adult"
+timeLimitInSeconds = 5 * 300
+if dataSet == "adult"
     timeLimitInSeconds = 10 * timeLimitInSeconds
+end
 orderedRules = sortRules(dataSet, resultsFolder, train, rules, timeLimitInSeconds)
 
 println("-- Train results")

@@ -188,7 +188,7 @@ function createRules(dataSet::String, resultsFolder::String, train::DataFrames.D
         n::Int64 = size(t, 1)
         mincovy::Float64 = 0.05
         if dataSet == "adult"
-            mincovy = 0.25
+            mincovy = 0.45
         end
         iterlim::Int64 = 3
         RgenX::Float64 = 0.1 / n

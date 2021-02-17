@@ -39,7 +39,7 @@ def create_features(df, cfg_dict):
         ft_to_remove = get_corr_features(corr_dict, target)
         filtered_features = [ft for ft in significant_features if ft not in ft_to_remove]
     else:
-        filtered_features = [ft1 for (ft1, ft2) in corr_dict.keys() if ft2 == target]
+        filtered_features = [ft1 for (ft1, ft2) in corr_dict.keys() if ft2 == target or ft1 == target]
     logger.info(f"After correlation filtering, {len(filtered_features)}/{len(features)} remaining features.")
     df_filtered = df_filtered[filtered_features + [target]]
     # Nominal variables: Modalities aggregation
