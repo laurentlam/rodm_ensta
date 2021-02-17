@@ -186,8 +186,10 @@ function createRules(dataSet::String, resultsFolder::String, train::DataFrames.D
 
         # Number of transactions
         n::Int64 = size(t, 1)
-
         mincovy::Float64 = 0.05
+        if dataSet == "adult"
+            mincovy = 0.25
+        end
         iterlim::Int64 = 3
         RgenX::Float64 = 0.1 / n
         RgenB::Float64 = 0.1 / (n * d)
@@ -255,7 +257,6 @@ function createRules(dataSet::String, resultsFolder::String, train::DataFrames.D
             # - if it is the first rule, use: rules = rule
             # - if it is not the first rule, use: rules = append!(rules, rule)
         end
-        println(rules)
         if size(rules, 2) == 1
             CSV.write(rulesPath, rules[1])
         else
