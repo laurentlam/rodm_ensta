@@ -1,5 +1,6 @@
 import logging
 from functools import partial
+
 import numpy as np
 import pandas as pd
 from scipy.stats import chi2_contingency, ttest_ind
@@ -20,23 +21,30 @@ def get_logger():
 
 def preprocess_columns(df, cfg_dict):
     processed_features = {}
+    df = df.replace("?", np.nan)
+    df = df.replace(" ?", np.nan)
     df = df.dropna()
     columns = df.columns.tolist()
     for feature in columns:
         if df[feature].dtype in [int, float]:
             processed_features[feature] = df[feature].tolist()
         elif df[feature].dtype == object:
-            processed_features[feature] = [cfg_dict["label_dict"][sample] for sample in df[feature]]
+            if set(df[feature].unique()).issubset(set(cfg_dict["label_dict"])):
+                processed_features[feature] = [cfg_dict["label_dict"][sample] for sample in df[feature]]
+            else:
+                sample_list = sorted(df[feature].unique().tolist())
+                processed_features[feature] = [sample_list.index(sample) for sample in df[feature]]
     return pd.DataFrame(processed_features)
 
 
 def preprocess_adult(df, cfg_dict):
     df_processed = df.copy(deep=True)
     df_processed["education_cat"] = pd.cut(df_processed["education_num"], bins=[0, 8, 12, 16], labels=range(3)).astype(int)
-    df_processed["workclass_cat"] = df_processed["workclass"].replace(cfg_dict["workclass_cat"], inplace=False).astype(int)
+    df_processed["workclass_gov"] = df_processed["workclass"].replace(cfg_dict["workclass_gov"], inplace=False).astype(int)
+    df_processed["workclass_private"] = df_processed["workclass"].replace(cfg_dict["workclass_private"], inplace=False).astype(int)
     df_processed["marital_status_cat"] = df_processed["marital_status"].replace(cfg_dict["marital_status_cat"], inplace=False).astype(int)
-    df_processed["occupation_cat"] = df_processed["occupation"].replace(cfg_dict["occupation_cat"], inplace=False).astype(int)
-    ft_to_delete = ["education", "relationship", "education_num", "native_country", "workclass", "marital_status", "occupation"]
+    # df_processed["occupation_cat"] = df_processed["occupation"].replace(cfg_dict["occupation_cat"], inplace=False).astype(int)
+    ft_to_delete = ["education", "relationship", "education_num", "native_country", "workclass", "marital_status", "occupation", "race"]
     df_processed = df_processed[[ft for ft in df_processed.columns if ft not in ft_to_delete]]
     df_processed = add_column_modalities(df_processed, cfg_dict)
     return preprocess_columns(df_processed, cfg_dict)

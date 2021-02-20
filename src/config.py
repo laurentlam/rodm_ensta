@@ -54,11 +54,13 @@ def get_config(dataset):
         config_dict["test_size"] = 31 / 32
         config_dict["corr_threshold"] = 0.6
         config_dict["ft_mod_dict"] = {
-            "race": [" White", " Black", " Asian-Pac-Islander", " Amer-Indian-Eskimo", " Other"],
+            # "race": [" White", " Black", " Asian-Pac-Islander", " Amer-Indian-Eskimo", " Other"],
         }
         config_dict["feature_clf"] = {
             "occupation_cat": "cat",
             "marital_status_cat": "cat",
+            "workclass_gov": "cat",
+            "workclass_private": "cat",
             "workclass_cat": "cat",
             "education_cat": "cat",
             "age": "num",
@@ -81,13 +83,24 @@ def get_config(dataset):
             " Male": 1,
             " Female": 0,
         }
-        config_dict["workclass_cat"] = {
+        config_dict["workclass_gov"] = {
             " State-gov": 3,
             " Federal-gov": 2,
             " Local-gov": 1,
-            " Self-emp-inc": 6,
-            " Self-emp-not-inc": 5,
-            " Private": 4,
+            " Self-emp-inc": 0,
+            " Self-emp-not-inc": 0,
+            " Private": 0,
+            " Without-pay": 0,
+            " Never-worked": 0,
+            " ?": 0,
+        }
+        config_dict["workclass_private"] = {
+            " State-gov": 0,
+            " Federal-gov": 0,
+            " Local-gov": 0,
+            " Self-emp-inc": 3,
+            " Self-emp-not-inc": 2,
+            " Private": 1,
             " Without-pay": 0,
             " Never-worked": 0,
             " ?": 0,
@@ -117,5 +130,48 @@ def get_config(dataset):
             " Protective-serv": 2,
             " Armed-Forces": 0,
             " Priv-house-serv": 0,
+        }
+    elif dataset == "diagnosis":
+        config_dict["target"] = "inflammation"
+        config_dict["test_size"] = 1 / 3
+        config_dict["corr_threshold"] = 0.7
+        config_dict["feature_clf"] = {
+            "temp": "num",
+            "nausea": "cat",
+            "lumbar_pain": "cat",
+            "urine_pushing": "cat",
+            "micturition_pain": "cat",
+            "burning_urethra": "cat",
+            "inflammation": "cat",
+            "nephritis": "cat",
+        }
+        config_dict["label_dict"] = {
+            "no": 0,
+            "yes": 1,
+        }
+    elif dataset == "breast_cancer":
+        config_dict["target"] = "class"
+        config_dict["test_size"] = 1 / 3
+        config_dict["corr_threshold"] = 0.6
+        config_dict["feature_clf"] = {
+            "class": "cat",
+            "age": "cat",
+            "menopause": "cat",
+            "tumor_size": "cat",
+            "inv_nodes": "cat",
+            "node_caps": "cat",
+            "deg_malig": "cat",
+            "breast": "class",
+            "breast_quad": "class",
+            "irradiat": "cat",
+        }
+        config_dict["label_dict"] = {
+            "no-recurrence-events": 0,
+            "recurrence-events": 1,
+            "yes": 1,
+            "no": 0,
+            "premeno": 0,
+            "lt40": 1,
+            "ge40": 1,
         }
     return config_dict

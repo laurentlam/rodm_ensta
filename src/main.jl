@@ -30,7 +30,7 @@ rules = createRules(dataSet, resultsFolder, train)
 # - save the rules in ./res/kidney_ordered_rules.csv
 timeLimitInSeconds = 5 * 300
 if dataSet == "adult"
-    timeLimitInSeconds = 10 * timeLimitInSeconds
+    timeLimitInSeconds = 2 * timeLimitInSeconds
 end
 orderedRules = sortRules(dataSet, resultsFolder, train, rules, timeLimitInSeconds)
 

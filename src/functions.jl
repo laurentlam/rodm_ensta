@@ -188,7 +188,9 @@ function createRules(dataSet::String, resultsFolder::String, train::DataFrames.D
         n::Int64 = size(t, 1)
         mincovy::Float64 = 0.05
         if dataSet == "adult"
-            mincovy = 0.45
+            mincovy = 0.4
+        elseif dataSet == "breast_cancer"
+            mincovy = 0.6
         end
         iterlim::Int64 = 3
         RgenX::Float64 = 0.1 / n
@@ -449,7 +451,7 @@ Arguments
 """
 function showStatistics(orderedRules::DataFrames.DataFrame, dataSet::DataFrames.DataFrame)
 
-    
+
     # Number of transactions
     n = size(dataSet, 1)
 

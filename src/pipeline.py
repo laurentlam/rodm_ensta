@@ -9,9 +9,11 @@ Laurent Lam & Ilyes El-Rammach
 """
 
 import argparse
-from tqdm import tqdm
+
+import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
+from tqdm import tqdm
 
 from config import get_config
 from functions import *
@@ -38,8 +40,14 @@ def create_features(df, cfg_dict):
     if dataset == "adult":
         ft_to_remove = get_corr_features(corr_dict, target)
         filtered_features = [ft for ft in significant_features if ft not in ft_to_remove]
+    elif dataset == "diagnosis":
+        ft_to_remove = get_corr_features(corr_dict, target)
+        ft_to_remove += ["nephritis"]
+        filtered_features = [ft for ft in significant_features if ft not in ft_to_remove]
     else:
-        filtered_features = [ft1 for (ft1, ft2) in corr_dict.keys() if ft2 == target or ft1 == target]
+        ft_to_remove = get_corr_features(corr_dict, target)
+        filtered_features = [ft for ft in significant_features if ft not in ft_to_remove]
+        # filtered_features = [ft1 for (ft1, ft2) in corr_dict.keys() if ft2 == target or ft1 == target]
     logger.info(f"After correlation filtering, {len(filtered_features)}/{len(features)} remaining features.")
     df_filtered = df_filtered[filtered_features + [target]]
     # Nominal variables: Modalities aggregation
