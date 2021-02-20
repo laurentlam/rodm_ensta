@@ -1,3 +1,4 @@
+import json
 import logging
 from functools import partial
 
@@ -287,3 +288,46 @@ def binarize(df, cfg_dict):
     df_binary = binarize_ordinal(df, df_binary, ordinal_cols)
     df_binary = binarize_classical(df, df_binary, class_cols)
     return df_binary
+
+
+def write_feature_markers(features_markers, dataset, cfg_dict):
+    simple_feature_markers = {
+        "target": features_markers["target"],
+        "filtered_features": features_markers["filtered_features"],
+        "aggr_mod_bins": {
+            ft: [(interval[0], interval[-1]) for interval in features_markers["aggr_mod_bins"][ft]]
+            for ft in features_markers["aggr_mod_bins"]
+        },
+        "continuous_bins": {
+            ft: [(interval.left, interval.right) for interval in features_markers["continuous_bins"][ft]]
+            for ft in features_markers["continuous_bins"]
+        },
+        "aggr_cont_bins": {
+            ft: [(interval[0], interval[-1]) for interval in features_markers["aggr_cont_bins"][ft]]
+            for ft in features_markers["aggr_cont_bins"]
+        },
+        "label_dict": {
+            val_index: [mod for mod, val in cfg_dict["label_dict"].items() if val == val_index]
+            for val_index in range(len(set(cfg_dict["label_dict"].values())))
+        },
+    }
+    if dataset == "adult":
+        simple_feature_markers["aggr_mod_bins"]["workclass_gov"] = {
+            val_index: [mod for mod, val in cfg_dict["workclass_gov"].items() if val == val_index]
+            for val_index in range(len(set(cfg_dict["workclass_gov"].values())))
+        }
+        simple_feature_markers["aggr_mod_bins"]["workclass_private"] = {
+            val_index: [mod for mod, val in cfg_dict["workclass_private"].items() if val == val_index]
+            for val_index in range(len(set(cfg_dict["workclass_private"].values())))
+        }
+        simple_feature_markers["aggr_mod_bins"]["marital_status_cat"] = {
+            val_index: [mod for mod, val in cfg_dict["marital_status_cat"].items() if val == val_index]
+            for val_index in range(len(set(cfg_dict["marital_status_cat"].values())))
+        }
+        simple_feature_markers["aggr_mod_bins"]["occupation_cat"] = {
+            val_index: [mod for mod, val in cfg_dict["occupation_cat"].items() if val == val_index]
+            for val_index in range(len(set(cfg_dict["occupation_cat"].values())))
+        }
+
+    with open(f"./res/{dataset}_feature_markers.json", "w") as json_file:
+        json.dump(simple_feature_markers, json_file, indent=4)

@@ -150,4 +150,7 @@ if __name__ == "__main__":
     # Write to CSV files
     logger.info("Writing into CSV files...")
     write_csv_files(dataset, dataset_path, df_train_binary, df_test_binary)
+    # Write feature markers
+    logger.info("Writing feature markers into JSON file...")
+    write_feature_markers(features_markers, dataset, cfg_dict)
     logger.info("Pre-processing pipeline done.")
