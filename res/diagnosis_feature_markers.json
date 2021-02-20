@@ -1,0 +1,43 @@
+{
+    "target": "inflammation",
+    "filtered_features": [
+        "temp",
+        "lumbar_pain",
+        "urine_pushing",
+        "micturition_pain"
+    ],
+    "aggr_mod_bins": {},
+    "continuous_bins": {
+        "temp": [
+            [
+                35.999,
+                36.98
+            ],
+            [
+                36.98,
+                37.26
+            ],
+            [
+                37.26,
+                37.74
+            ],
+            [
+                37.74,
+                40.4
+            ],
+            [
+                40.4,
+                41.3
+            ]
+        ]
+    },
+    "aggr_cont_bins": {},
+    "label_dict": {
+        "0": [
+            "no"
+        ],
+        "1": [
+            "yes"
+        ]
+    }
+}

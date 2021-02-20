@@ -1,0 +1,25 @@
+{
+    "target": "class",
+    "filtered_features": [
+        "inv_nodes",
+        "node_caps",
+        "deg_malig",
+        "irradiat"
+    ],
+    "aggr_mod_bins": {},
+    "continuous_bins": {},
+    "aggr_cont_bins": {},
+    "label_dict": {
+        "0": [
+            "no-recurrence-events",
+            "no",
+            "premeno"
+        ],
+        "1": [
+            "recurrence-events",
+            "yes",
+            "lt40",
+            "ge40"
+        ]
+    }
+}

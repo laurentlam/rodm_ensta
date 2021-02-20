@@ -1,0 +1,156 @@
+{
+    "target": "income",
+    "filtered_features": [
+        "age",
+        "sex",
+        "capital_gain",
+        "capital_loss",
+        "hours_per_week",
+        "education_cat",
+        "workclass_private",
+        "marital_status_cat"
+    ],
+    "aggr_mod_bins": {
+        "workclass_gov": {
+            "0": [
+                " Self-emp-inc",
+                " Self-emp-not-inc",
+                " Private",
+                " Without-pay",
+                " Never-worked",
+                " ?"
+            ],
+            "1": [
+                " Local-gov"
+            ],
+            "2": [
+                " Federal-gov"
+            ],
+            "3": [
+                " State-gov"
+            ]
+        },
+        "workclass_private": {
+            "0": [
+                " State-gov",
+                " Federal-gov",
+                " Local-gov",
+                " Without-pay",
+                " Never-worked",
+                " ?"
+            ],
+            "1": [
+                " Private"
+            ],
+            "2": [
+                " Self-emp-not-inc"
+            ],
+            "3": [
+                " Self-emp-inc"
+            ]
+        },
+        "marital_status_cat": {
+            "0": [
+                " Never-married",
+                " Divorced",
+                " Married-spouse-absent",
+                " Separated",
+                " Widowed"
+            ],
+            "1": [
+                " Married-civ-spouse",
+                " Married-AF-spouse"
+            ]
+        },
+        "occupation_cat": {
+            "0": [
+                " Adm-clerical",
+                " Handlers-cleaners",
+                " Other-service",
+                " Farming-fishing",
+                " Machine-op-inspct",
+                " ?",
+                " Armed-Forces",
+                " Priv-house-serv"
+            ],
+            "1": [
+                " Sales",
+                " Craft-repair",
+                " Transport-moving"
+            ],
+            "2": [
+                " Tech-support",
+                " Protective-serv"
+            ],
+            "3": [
+                " Exec-managerial",
+                " Prof-specialty"
+            ]
+        }
+    },
+    "continuous_bins": {
+        "age": [
+            [
+                16.999,
+                24.0
+            ],
+            [
+                24.0,
+                31.0
+            ],
+            [
+                31.0,
+                39.0
+            ],
+            [
+                39.0,
+                49.0
+            ],
+            [
+                49.0,
+                90.0
+            ]
+        ],
+        "capital_loss": [
+            [
+                -0.001,
+                2603.0
+            ]
+        ],
+        "hours_per_week": [
+            [
+                4.999,
+                32.0
+            ],
+            [
+                32.0,
+                40.0
+            ],
+            [
+                40.0,
+                45.0
+            ],
+            [
+                45.0,
+                99.0
+            ]
+        ],
+        "capital_gain": [
+            [
+                -0.001,
+                5721.0
+            ]
+        ]
+    },
+    "aggr_cont_bins": {},
+    "label_dict": {
+        "0": [
+            " >50K",
+            " Female"
+        ],
+        "1": [
+            " <=50K",
+            " Male"
+        ]
+    }
+}
