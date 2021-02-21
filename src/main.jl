@@ -39,9 +39,9 @@ orderedRules = sortRules(dataSet, resultsFolder, train, rules, timeLimitInSecond
 sortRulesTime = time() - sortRulesTime
 
 println("-- Computing time")
-println("createFeaturesTime:\t", round(createFeaturesTime))
-println("createRulesTime:\t", round(createRulesTime))
-println("sortRulesTime:\t", round(sortRulesTime))
+println("createFeaturesTime:\t", round(createFeaturesTime, digits=2), " seconds")
+println("createRulesTime:\t", round(createRulesTime, digits=2), " seconds")
+println("sortRulesTime:\t\t", round(sortRulesTime, digits=2), " seconds\n")
 
 println("-- Train results")
 showStatistics(orderedRules, train)
