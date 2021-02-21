@@ -15,24 +15,33 @@ resultsFolder = "./res/"
 # Details:
 # - read the file ./data/kidney.csv
 # - save the features in ./data/kidney_test.csv and ./data/kidney_train.csv
+createFeaturesTime = time()
 train, test = createFeatures(dataFolder, dataSet)
+createFeaturesTime = time() - createFeaturesTime
 
 # Create the rules (or load them if they already exist)
 # Note: each line corresponds to a rule, the first column corresponds to the class
 # Details:
 # - read the file ./data/kidney_train.csv
 # - save the rules in ./res/kidney_rules.csv
+createRulesTime = time()
 rules = createRules(dataSet, resultsFolder, train)
+createRulesTime = time() - createRulesTime
 
 # Order the rules (limit the resolution to 300 seconds)
 # Details:
 # - read the file ./data/kidney_rules.csv
 # - save the rules in ./res/kidney_ordered_rules.csv
-timeLimitInSeconds = 5 * 300
-if dataSet == "adult"
-    timeLimitInSeconds = 2 * timeLimitInSeconds
-end
+timeLimitInSeconds = 300
+
+sortRulesTime = time()
 orderedRules = sortRules(dataSet, resultsFolder, train, rules, timeLimitInSeconds)
+sortRulesTime = time() - sortRulesTime
+
+println("-- Computing time")
+println("createFeaturesTime:\t", round(createFeaturesTime))
+println("createRulesTime:\t", round(createRulesTime))
+println("sortRulesTime:\t", round(sortRulesTime))
 
 println("-- Train results")
 showStatistics(orderedRules, train)
