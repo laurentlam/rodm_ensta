@@ -1,4 +1,12 @@
 def get_config(dataset):
+    """Get configuration dictionary for the entire pipeline.
+
+    Parameters:
+    - dataset: name of the dataset
+
+    Returns:
+    - cfg_dict: configuration dictionary
+    """
     config_dict = {}
     config_dict["seed"] = 18
     config_dict["bootstrap_size"] = 1000
@@ -6,6 +14,7 @@ def get_config(dataset):
     config_dict["pval_threshold"] = 0.05
     config_dict["max_bins"] = 5
 
+    # KIDNEY DATASET
     if dataset == "kidney":
         config_dict["target"] = "class"
         config_dict["test_size"] = 1 / 3
@@ -49,6 +58,8 @@ def get_config(dataset):
             "good": 0,
             "poor": 1,
         }
+    
+    # ADULT DATASET
     elif dataset == "adult":
         config_dict["target"] = "income"
         config_dict["test_size"] = 31 / 32
@@ -56,6 +67,7 @@ def get_config(dataset):
         config_dict["ft_mod_dict"] = {
             # "race": [" White", " Black", " Asian-Pac-Islander", " Amer-Indian-Eskimo", " Other"],
         }
+        config_dict["education_cat"] = [0, 8, 12, 16]
         config_dict["feature_clf"] = {
             "occupation_cat": "cat",
             "marital_status_cat": "cat",
@@ -131,6 +143,8 @@ def get_config(dataset):
             " Armed-Forces": 0,
             " Priv-house-serv": 0,
         }
+    
+    # DIAGNOSIS DATASET
     elif dataset == "diagnosis":
         config_dict["target"] = "inflammation"
         config_dict["test_size"] = 1 / 3
@@ -149,6 +163,8 @@ def get_config(dataset):
             "no": 0,
             "yes": 1,
         }
+    
+    # BREAST CANCER DATASET
     elif dataset == "breast_cancer":
         config_dict["target"] = "class"
         config_dict["test_size"] = 1 / 3

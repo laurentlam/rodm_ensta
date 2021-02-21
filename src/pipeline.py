@@ -22,6 +22,16 @@ logger = get_logger()
 
 
 def create_features(df, cfg_dict):
+    """Pre-process and Create statiscally discriminant binarized features from raw DataFrame.
+
+    Parameters:
+    - df: raw DataFrame
+    - cfg_dict: configuration dictionary
+
+    Returns:
+    - df_binary: processed and binarized DataFrame
+    - features_markers: dictionary containing all feature markers to perform DataFrame binarization
+    """
     # Collect features and target
     columns = df.columns.tolist()
     target = cfg_dict["target"]
@@ -86,6 +96,15 @@ def create_features(df, cfg_dict):
 
 
 def transform_features(df, features_markers):
+    """Pre-process and Transform a raw DataFrame into statiscally discriminant binarized features.
+
+    Parameters:
+    - df: raw DataFrame
+    - features_markers: dictionary containing all feature markers to perform DataFrame binarization
+
+    Returns:
+    - df_binary: processed and binarized DataFrame
+    """
     # Statistically significant features
     logger.info("Filtering out non-significant features...")
     df_filtered = df[features_markers["significant_features"] + [features_markers["target"]]]
@@ -109,6 +128,14 @@ def transform_features(df, features_markers):
 
 
 def write_csv_files(dataset, dataset_path, df_train, df_test):
+    """Write training and testing sets into csv files.
+
+    Parameters:
+    - dataset: name of the dataset
+    - dataset_path: path to the dataset
+    - df_train: processed training DataFrame
+    - df_test: processed testing DataFrame
+    """
     folder_path = "/".join(dataset_path.split("/")[:-1])
     logger.info(f"Writing train split into CSV file at {folder_path + f'/{dataset}_train.csv'}...")
     df_train.to_csv(folder_path + f"/{dataset}_train.csv", index=False)

@@ -10,6 +10,11 @@ from config import get_config
 
 
 def get_logger():
+    """Build and return logger for the entire pipeline.
+
+    Returns:
+    - logger: logging instance
+    """
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.DEBUG)
     ch = logging.StreamHandler()
@@ -21,6 +26,15 @@ def get_logger():
 
 
 def preprocess_columns(df, cfg_dict):
+    """Pre-process DataFrame columns and convert all values into numerical or categorial integers for further processings.
+
+    Parameters:
+    - df: raw DataFrame
+    - cfg_dict: configuration dictionary
+
+    Returns:
+    - df_processed: preprocessed DataFrame
+    """
     processed_features = {}
     df = df.replace("?", np.nan)
     df = df.replace(" ?", np.nan)
@@ -29,6 +43,7 @@ def preprocess_columns(df, cfg_dict):
     for feature in columns:
         if df[feature].dtype in [int, float]:
             processed_features[feature] = df[feature].tolist()
+        # Processing str
         elif df[feature].dtype == object:
             if set(df[feature].unique()).issubset(set(cfg_dict["label_dict"])):
                 processed_features[feature] = [cfg_dict["label_dict"][sample] for sample in df[feature]]
@@ -39,8 +54,18 @@ def preprocess_columns(df, cfg_dict):
 
 
 def preprocess_adult(df, cfg_dict):
+    """Pre-process the ADULT DATASET DataFrame columns and convert all values into numerical or categorial integers for further processings.
+    Additional Categorial and Nominal modalities conversion are made from observations.
+
+    Parameters:
+    - df: raw DataFrame
+    - cfg_dict: configuration dictionary
+
+    Returns:
+    - df_processed: processed DataFrame
+    """
     df_processed = df.copy(deep=True)
-    df_processed["education_cat"] = pd.cut(df_processed["education_num"], bins=[0, 8, 12, 16], labels=range(3)).astype(int)
+    df_processed["education_cat"] = pd.cut(df_processed["education_num"], bins=cfg_dict["education_cat"], labels=range(len(cfg_dict["education_cat"])-1)).astype(int)
     df_processed["workclass_gov"] = df_processed["workclass"].replace(cfg_dict["workclass_gov"], inplace=False).astype(int)
     df_processed["workclass_private"] = df_processed["workclass"].replace(cfg_dict["workclass_private"], inplace=False).astype(int)
     df_processed["marital_status_cat"] = df_processed["marital_status"].replace(cfg_dict["marital_status_cat"], inplace=False).astype(int)
@@ -52,6 +77,15 @@ def preprocess_adult(df, cfg_dict):
 
 
 def add_column_modalities(df, cfg_dict):
+    """For non-nomnal categorial classes/modalities, add a column for each modality in the DataFrame.
+
+    Parameters:
+    - df: raw DataFrame
+    - cfg_dict: configuration dictionary
+
+    Returns:
+    - new_df: preprocessed DataFrame
+    """
     new_df = df[[ft for ft in df.columns if ft not in cfg_dict["ft_mod_dict"]]].copy(deep=True)
     for ft, modalities in cfg_dict["ft_mod_dict"].items():
         for modality in modalities:
@@ -61,13 +95,25 @@ def add_column_modalities(df, cfg_dict):
 
 
 def test_column_significance(feature, target, cfg_dict):
+    """Perform independance test between the target population and non-target population based on the provided feature.
+    A Student T-Test is performed for numerical features.
+    A Chi-2 Test is performed for categorical/nominal features.
+
+    Parameters:
+    - feature: Series containing the feature variable to test
+    - target: Series containing the target class
+    - cfg_dict: configuration dictionary
+
+    Returns:
+    - stat: dictionary containing the statistical information for all features
+    """
     # T-Test
     if cfg_dict["feature_clf"][feature.name] == "num":
         feature_true = feature[target == 1]
         feature_false = feature[target == 0]
         tval, pval = ttest_ind(feature_true, feature_false)
         bt_diff_means = bootstrap_diff_means(feature, target, cfg_dict)
-        diff_means, boot_means, boot_ci = compute_confidence_interval(feature, bt_diff_means)
+        diff_means, boot_means, boot_ci = compute_confidence_interval(feature, target, bt_diff_means)
         stat = {
             "diff_means": diff_means,
             "boot_means": boot_means,
@@ -93,6 +139,16 @@ def test_column_significance(feature, target, cfg_dict):
 
 
 def bootstrap_diff_means(feature, target, cfg_dict):
+    """Perform a bootstrap process for a difference of means between target population and non-target population.
+
+    Parameters:
+    - feature: Series containing the feature variable to test
+    - target: Series containing the target class
+    - cfg_dict: configuration dictionary
+
+    Returns:
+    - bt_diff_means: list of bootstraped differences of means
+    """
     bt_diff_means = []
     for bootstrap_iter in range(cfg_dict["boot_iter"]):
         boot_index = np.random.choice(target.index, size=cfg_dict["bootstrap_size"])
@@ -103,14 +159,37 @@ def bootstrap_diff_means(feature, target, cfg_dict):
     return bt_diff_means
 
 
-def compute_confidence_interval(feature, bt_diff_means):
-    diff_means = feature.mean()
+def compute_confidence_interval(feature, target, bt_diff_means):
+    """Compute a 2-side 95% confidence interval from a bootstraped sample.
+
+    Parameters:
+    - feature: Series containing the feature variable to test
+    - target: Series containing the target class
+    - bt_diff_means: list of bootstraped differences of means
+
+    Returns:
+    - diff_means: true difference in means
+    - boot_means: mean bootstraped difference in means
+    - boot_ci: tuple representing the confidence interval
+    """
+    true_feature = feature[target == 1]
+    false_feature = feature[target == 0]
+    diff_means = true_feature.mean() - false_feature.mean()
     boot_means = np.mean(bt_diff_means)
     boot_ci = np.quantile(bt_diff_means, q=[0.025, 0.975])
     return diff_means, boot_means, boot_ci
 
 
 def get_correlated_variables(df, threshold):
+    """Compute correlation methods from Pearson, Spearman and Kendall and collect pairs of correlated variables.
+
+    Parameters:
+    - df: processed DataFrame
+    - threshold: correlation threshold
+
+    Returns:
+    - corr_var: dictionary containing pairs of correlated variables with list of correlation coefficients
+    """
     columns = df.columns.tolist()
     corr_var = dict()
     for method in ["pearson", "spearman", "kendall"]:
@@ -129,6 +208,15 @@ def get_correlated_variables(df, threshold):
 
 
 def get_corr_features(corr_dict, target):
+    """List all inter-correlated features and filter out one variable of each pair of correlated features.
+
+    Parameters:
+    - corr_dict: dictionary containing pairs of correlated variables with list of correlation coefficients
+    - target: target class
+
+    Returns:
+    - to_remove: correlated features to filter out
+    """
     to_remove = []
     for (ft1, ft2), corr in corr_dict.items():
         if ft1 == target:
@@ -169,6 +257,15 @@ def get_corr_features(corr_dict, target):
 
 
 def get_aggregated_modalities(contingency_table):
+    """List modalities that can be aggregated based on contingency table.
+
+    Parameters:
+    - contingency_table: contingency table between feature modalities and target class
+
+    Returns:
+    - aggr_mod: aggregated modalities
+    - aggr_mod_index: aggregated modalities index
+    """
     modalities = contingency_table.index.tolist()
     discr = False
     aggr = False
@@ -199,6 +296,15 @@ def get_aggregated_modalities(contingency_table):
 
 
 def create_aggr_mod_bins(res_stats, cfg_dict):
+    """Create aggregated modalities for nominal variables.
+
+    Parameters:
+    - res_stats: dictionary containing statistical information from independance tests
+    - cfg_dict: configuration dictionary
+
+    Returns:
+    - new_mod_bins: dictionary containing nominal variables with modalities that can be aggregated
+    """
     new_mod_bins = {}
     for feature in res_stats:
         if cfg_dict["feature_clf"][feature] == "cat":
@@ -210,6 +316,16 @@ def create_aggr_mod_bins(res_stats, cfg_dict):
 
 
 def reduce_mod_features(df, new_mod_bins):
+    """Replace original modalities of nominal variables with aggregated modalities.
+
+    Parameters:
+    - df: processed DataFrame
+    - new_mod_bins: dictionary containing nominal variables with modalities that can be aggregated
+
+    Returns:
+    - df: processed and aggregated DataFrame
+    """
+    new_mod_bins = {
     new_modalities_dict = {}
     columns = df.columns.tolist()
     for feature, mod_bins in new_mod_bins.items():
@@ -220,6 +336,15 @@ def reduce_mod_features(df, new_mod_bins):
 
 
 def assign_val2bin(value, bins):
+    """Assign value to its corresponding bin.
+
+    Parameters:
+    - value: numerical modality/value
+    - bins: list of intervals/tuples representing the bins
+
+    Returns:
+    - bin_index: bin index
+    """
     if value <= bins[0].left:
         return 0
     for bin_index, bin in enumerate(bins):
@@ -229,6 +354,15 @@ def assign_val2bin(value, bins):
 
 
 def assign_bins(df, binning_intervals):
+    """Convert from continuous/numerical values to bins/bin index.
+
+    Parameters:
+    - df: processed DataFrame
+    - binning_intervals: dictionary containing the bins for the continuous features
+
+    Returns:
+    - df: processed DataFrame
+    """
     for ft in binning_intervals:
         assign_val2bin_ft = partial(assign_val2bin, bins=binning_intervals[ft])
         df[ft] = df[ft].apply(assign_val2bin_ft)
@@ -236,6 +370,16 @@ def assign_bins(df, binning_intervals):
 
 
 def create_bins(df, target, cfg_dict):
+    """Create bins from target population via a quantile cut.
+
+    Parameters:
+    - df: processed DataFrame
+    - target: target class
+    - cfg_dict: configuration dictionary
+
+    Returns:
+    - binning_intervals: dictionary containing the bins for the continuous features
+    """
     columns = df.columns.tolist()
     features, target = columns[:-1], columns[-1]
     ft_num = set([ft for ft in features if cfg_dict["feature_clf"][ft] == "num"])
@@ -245,6 +389,17 @@ def create_bins(df, target, cfg_dict):
 
 
 def create_aggr_cont_bins(df, continuous_bins, cfg_dict):
+    """Create aggregated modalities from continuous binned features. 
+    The modalities to consider are the bins index.
+
+    Parameters:
+    - df: processed DataFrame
+    - continuous_bins: dictionary containing the bins for the continuous features
+    - cfg_dict: configuration dictionary
+
+    Returns:
+    - new_cont_bins: dictionary containing continuous variables with modalities that can be aggregated
+    """
     new_cont_bins = {}
     columns = df.columns.tolist()
     features, target = columns[:-1], columns[-1]
@@ -264,6 +419,16 @@ def create_aggr_cont_bins(df, continuous_bins, cfg_dict):
 
 
 def binarize_ordinal(df, df_binary, cols_to_binarize):
+    """Perform ordinal binarization.
+
+    Parameters:
+    - df: processed DataFrame
+    - df_binary: binary DataFrame
+    - cols_to_binarize: columns to binarize
+
+    Returns:
+    - df_binary: binary DataFrame
+    """
     for ft in cols_to_binarize:
         n_cols = df[ft].nunique() - 1
         df_binary[[f"{ft}_{index}" for index in range(n_cols)]] = df[ft].apply(
@@ -273,6 +438,16 @@ def binarize_ordinal(df, df_binary, cols_to_binarize):
 
 
 def binarize_classical(df, df_binary, cols_to_binarize):
+    """Perform classical binarization.
+
+    Parameters:
+    - df: processed DataFrame
+    - df_binary: binary DataFrame
+    - cols_to_binarize: columns to binarize
+
+    Returns:
+    - df_binary: binary DataFrame
+    """
     for ft in cols_to_binarize:
         n_cols = df[ft].nunique() - 1
         df_binary[[f"{ft}_{index}" for index in range(n_cols)]] = df[ft].apply(
@@ -282,6 +457,15 @@ def binarize_classical(df, df_binary, cols_to_binarize):
 
 
 def binarize(df, cfg_dict):
+    """Perform DataFrame binarization via classical and ordinal binarizations.
+
+    Parameters:
+    - df: processed DataFrame
+    - cfg_dict: configuration dictionary
+
+    Returns:
+    - df_binary: binary DataFrame
+    """
     df_binary = pd.DataFrame([])
     ordinal_cols = [ft for ft in df.columns.tolist()[:-1] if cfg_dict["feature_clf"][ft] != cfg_dict["target"]]
     class_cols = [ft for ft in df.columns.tolist()[:-1] if ft not in ordinal_cols] + [cfg_dict["target"]]
@@ -291,6 +475,13 @@ def binarize(df, cfg_dict):
 
 
 def write_feature_markers(features_markers, dataset, cfg_dict):
+    """Write feature markers into JSON file.
+
+    Parameters:
+    - features_markers: dictionary containing all feature markers to perform DataFrame binarization
+    - dataset: dataset name
+    - cfg_dict: configuration dictionary
+    """
     simple_feature_markers = {
         "target": features_markers["target"],
         "filtered_features": features_markers["filtered_features"],
@@ -328,6 +519,7 @@ def write_feature_markers(features_markers, dataset, cfg_dict):
             val_index: [mod for mod, val in cfg_dict["occupation_cat"].items() if val == val_index]
             for val_index in range(len(set(cfg_dict["occupation_cat"].values())))
         }
-
+        simple_feature_markers["aggr_mod_bins"]["education_cat"] = [(lower, upper) for (lower, upper) in zip(cfg_dict["education_cat"], cfg_dict["education_cat"][1:])]
+            
     with open(f"./res/{dataset}_feature_markers.json", "w") as json_file:
         json.dump(simple_feature_markers, json_file, indent=4)
