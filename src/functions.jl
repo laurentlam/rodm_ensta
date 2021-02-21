@@ -188,7 +188,7 @@ function createRules(dataSet::String, resultsFolder::String, train::DataFrames.D
         n::Int64 = size(t, 1)
         mincovy::Float64 = 0.05
         if dataSet == "adult"
-            mincovy = 0.4
+            mincovy = 0.3
         elseif dataSet == "breast_cancer"
             mincovy = 0.6
         end
