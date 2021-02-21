@@ -325,7 +325,7 @@ def reduce_mod_features(df, new_mod_bins):
     Returns:
     - df: processed and aggregated DataFrame
     """
-    new_mod_bins = {
+    new_mod_bins = {}
     new_modalities_dict = {}
     columns = df.columns.tolist()
     for feature, mod_bins in new_mod_bins.items():
