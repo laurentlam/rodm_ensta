@@ -1,7 +1,7 @@
 # Projet de Recherche Opérationnelle et Données Massives (SOD322) - ENSTA Paris 
 
 ## Pour commencer
-Projet de Recherche Opérationnelle et Données Massives (SOD322) pour l'ENSTA Paris réalisé par **Ilyes EL-RAMMACH** et **Laurent LAM**. 
+Projet de Recherche Opérationnelle et Données Massives (SOD322) pour l'ENSTA Paris réalisé par **Ilyes ER-RAMMACH** et **Laurent LAM**. 
 
 Implémentation d'un algorithme de classification supervisée ([An Integer Optimization Approach to Associative Classification](https://www.mit.edu/~dbertsim/papers/Machine%20Learning%20under%20a%20Modern%20Optimization%20Lens/An%20Integer%20Optimization%20Approach%20to%20Associative%20Classification.pdf) par Bertsimas, Chang et Rudin) via un traitement des données et une binarisation des features discriminantes afin d'accélerer le processus de classification.
 
