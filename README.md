@@ -63,7 +63,7 @@ La commande pour lancer le projet est donc:
 
 Les différents *flags* sont:
 
-- ```-d DATASET_NAME``` **nécessaire**, indique le **nom du dataset** à traiter
+- ```-d DATASET_NAME``` **nécessaire**, indique le **nom du dataset** à traiter (ex : adult)
 - ```-f``` **optionnel**, permet d'activer le traitement du dataset brut, via un pre-processing et une binarisation des **features**, et conduit à la création des **training** et **testing** sets.
 *Ne pas indiquer ce flag conduit à supposer l'existence au préalable des fichiers CSV _train_ et _test_ dans le dossier `data`*
 - ```-r``` **optionnel**, permet d'activer l'étape de **génération de règles**. 
