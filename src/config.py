@@ -96,8 +96,8 @@ def get_config(dataset):
             " Female": 0,
         }
         config_dict["workclass_gov"] = {
-            " State-gov": 3,
-            " Federal-gov": 2,
+            " State-gov": 2,
+            " Federal-gov": 3,
             " Local-gov": 1,
             " Self-emp-inc": 0,
             " Self-emp-not-inc": 0,
