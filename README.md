@@ -52,6 +52,13 @@ La structure du module est présentée ici avec pour exemple un jeu de données 
 - |__ `DATASET_NAME_rules.csv`
 - |__ `DATASET_NAME_ordered_rules.csv`
 
+### Datasets supportés
+
+Les datasets supportés actuellement sont:
+
+- `adult`: dataset [Adult](https://archive.ics.uci.edu/ml/datasets/Adult)
+- `diagnosis`: dataset [Acute Inflammations](https://archive.ics.uci.edu/ml/datasets/Acute+Inflammations)
+
 ### Pipeline & Commandes
 
 Tout le projet peut être dirigé à partir d'un unique script _bash_ via le fichier `src/pipeline.sh`.
