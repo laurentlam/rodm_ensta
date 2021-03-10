@@ -5,6 +5,8 @@ Projet de Recherche Opérationnelle et Données Massives (SOD322) pour l'ENSTA P
 
 Implémentation d'un algorithme de classification supervisée ([An Integer Optimization Approach to Associative Classification](https://www.mit.edu/~dbertsim/papers/Machine%20Learning%20under%20a%20Modern%20Optimization%20Lens/An%20Integer%20Optimization%20Approach%20to%20Associative%20Classification.pdf) par Bertsimas, Chang et Rudin) via un traitement des données et une binarisation des features discriminantes afin d'accélerer le processus de classification.
 
+Un Rapport du projet plus détaillé se trouve en PDF ```Rapport_LAM_ER-RAMMACH.pdf```.
+
 ### Pré-requis
 Les langages utilisées dans ce projet sont:
 
@@ -33,6 +35,8 @@ La structure du module est présentée ici avec pour exemple un jeu de données 
 - |__ `.gitignore`
 - |__ `README.md`
 - |__ `requirements.txt`
+- |__ `Rapport_LAM_ER-RAMMACH.txt`
+
 
 #### État initial
 
